@@ -13,6 +13,7 @@ export interface Database {
           min_order: number;
           status: "aktif" | "tidak_aktif";
           sizes: string[] | null;
+          size_prices: Record<string, number> | null;
           image_url: string | null;
           created_at: string;
         };

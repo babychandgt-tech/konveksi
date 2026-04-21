@@ -27,6 +27,7 @@ interface Product {
   min_order: number;
   status: "aktif" | "tidak_aktif";
   sizes: string[] | null;
+  size_prices: Record<string, number> | null;
   image_url: string | null;
 }
 
@@ -59,12 +60,13 @@ interface FormState {
   price: string;
   min_order: string;
   sizes: string[];
+  size_prices: Record<string, string>;
   image_url: string;
 }
 
 const EMPTY_FORM: FormState = {
   name: "", category: "Kaos", material: "", price: "", min_order: "12",
-  sizes: ["M", "L", "XL"], image_url: "",
+  sizes: ["M", "L", "XL"], size_prices: {}, image_url: "",
 };
 
 export default function Katalog() {
@@ -102,10 +104,17 @@ export default function Katalog() {
   });
 
   const toggleSize = (size: string) => {
-    setForm((f) => ({
-      ...f,
-      sizes: f.sizes.includes(size) ? f.sizes.filter((s) => s !== size) : [...f.sizes, size],
-    }));
+    setForm((f) => {
+      if (f.sizes.includes(size)) {
+        const { [size]: _, ...rest } = f.size_prices;
+        return { ...f, sizes: f.sizes.filter((s) => s !== size), size_prices: rest };
+      }
+      return { ...f, sizes: [...f.sizes, size] };
+    });
+  };
+
+  const setSizePrice = (size: string, value: string) => {
+    setForm((f) => ({ ...f, size_prices: { ...f.size_prices, [size]: value } }));
   };
 
   const handleImageUpload = async (file: File) => {
@@ -141,6 +150,11 @@ export default function Katalog() {
       return;
     }
     setSaving(true);
+    const sizePricesNum: Record<string, number> = {};
+    form.sizes.forEach((s) => {
+      const v = parseInt(form.size_prices[s] ?? "0");
+      sizePricesNum[s] = isNaN(v) ? 0 : v;
+    });
     const payload = {
       name: form.name,
       category: form.category,
@@ -148,6 +162,7 @@ export default function Katalog() {
       price: parseInt(form.price),
       min_order: parseInt(form.min_order),
       sizes: form.sizes,
+      size_prices: sizePricesNum,
       image_url: form.image_url || null,
     };
     const { error } = editProduct
@@ -185,10 +200,12 @@ export default function Katalog() {
 
   const openEdit = (p: Product) => {
     setEditProduct(p);
+    const sp: Record<string, string> = {};
+    if (p.size_prices) Object.entries(p.size_prices).forEach(([k, v]) => { sp[k] = String(v); });
     setForm({
       name: p.name, category: p.category, material: p.material,
       price: String(p.price), min_order: String(p.min_order),
-      sizes: p.sizes ?? [], image_url: p.image_url ?? "",
+      sizes: p.sizes ?? [], size_prices: sp, image_url: p.image_url ?? "",
     });
     setAddOpen(true);
   };
@@ -291,7 +308,23 @@ export default function Katalog() {
                     </div>
                   </div>
 
-                  {/* Sizes */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Material / Bahan</Label>
+                    <Input
+                      value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })}
+                      placeholder="Cotton Combed 30s" className="h-9 border-gray-200 text-sm" required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Harga Dasar (Rp)</Label>
+                    <Input
+                      type="number" value={form.price}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })}
+                      placeholder="45000" className="h-9 border-gray-200 text-sm" required
+                    />
+                  </div>
+
+                  {/* Sizes + per-size price additions */}
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium">
                       Varian Ukuran <span className="text-gray-400">({form.sizes.length} dipilih)</span>
@@ -313,22 +346,26 @@ export default function Katalog() {
                         );
                       })}
                     </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium">Material / Bahan</Label>
-                    <Input
-                      value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })}
-                      placeholder="Cotton Combed 30s" className="h-9 border-gray-200 text-sm" required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-medium">Harga Satuan (Rp)</Label>
-                    <Input
-                      type="number" value={form.price}
-                      onChange={(e) => setForm({ ...form, price: e.target.value })}
-                      placeholder="45000" className="h-9 border-gray-200 text-sm" required
-                    />
+                    {form.sizes.length > 0 && (
+                      <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50/60 p-2.5 space-y-1.5">
+                        <p className="text-[10px] text-gray-500 uppercase font-semibold tracking-wide">
+                          Tambahan harga per ukuran (Rp)
+                        </p>
+                        {form.sizes.map((size) => (
+                          <div key={size} className="flex items-center gap-2">
+                            <span className="w-12 text-xs font-semibold text-gray-700">{size}</span>
+                            <span className="text-xs text-gray-400">+</span>
+                            <Input
+                              type="number" min="0"
+                              value={form.size_prices[size] ?? ""}
+                              onChange={(e) => setSizePrice(size, e.target.value)}
+                              placeholder="0"
+                              className="h-8 border-gray-200 text-sm flex-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-end gap-2 pt-1">
                     <Button
@@ -420,25 +457,51 @@ export default function Katalog() {
                   <h3 className="font-semibold text-gray-900 text-sm mb-1 leading-snug">{product.name}</h3>
                   <p className="text-xs text-muted-foreground mb-2">{product.material}</p>
 
-                  {/* Sizes */}
+                  {/* Sizes with per-size additions */}
                   {product.sizes && product.sizes.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-3">
-                      {product.sizes.map((s) => (
-                        <span
-                          key={s}
-                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-100"
-                        >
-                          {s}
-                        </span>
-                      ))}
+                      {product.sizes.map((s) => {
+                        const add = product.size_prices?.[s] ?? 0;
+                        return (
+                          <span
+                            key={s}
+                            title={add > 0 ? `+${formatRp(add)}` : "Harga dasar"}
+                            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-100 inline-flex items-center gap-0.5"
+                          >
+                            {s}
+                            {add > 0 && (
+                              <span className="text-[9px] font-medium text-teal-500">
+                                +{add >= 1000 ? `${Math.round(add / 1000)}k` : add}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      })}
                     </div>
                   )}
 
                   <div className="flex items-end justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Harga satuan</p>
-                      <p className="text-lg font-display font-bold text-teal-700">{formatRp(product.price)}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Min. order {product.min_order} pcs</p>
+                      {(() => {
+                        const adds = product.sizes?.map((s) => product.size_prices?.[s] ?? 0) ?? [];
+                        const maxAdd = adds.length ? Math.max(...adds) : 0;
+                        return (
+                          <>
+                            <p className="text-xs text-muted-foreground mb-0.5">
+                              Harga {maxAdd > 0 ? "mulai" : "satuan"}
+                            </p>
+                            <p className="text-lg font-display font-bold text-teal-700 leading-tight">
+                              {formatRp(product.price)}
+                            </p>
+                            {maxAdd > 0 && (
+                              <p className="text-[11px] text-gray-500 mt-0.5">
+                                s/d {formatRp(product.price + maxAdd)}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-0.5">Min. order {product.min_order} pcs</p>
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="flex gap-1.5">
                       <button

@@ -453,7 +453,7 @@ export default function CustomerPortal() {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
                       {filteredProducts.map((product, idx) => {
                         const imgs = productImages(product);
                         const adds = product.sizes?.map((s) => product.size_prices?.[s] ?? 0) ?? [];

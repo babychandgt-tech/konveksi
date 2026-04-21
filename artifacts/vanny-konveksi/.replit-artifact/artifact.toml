@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Vanny Konveksi"
+version = "1.0.0"
+id = "artifacts/vanny-konveksi"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21980
+
+[services.development]
+run = "pnpm --filter @workspace/vanny-konveksi run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/vanny-konveksi", "run", "build" ]
+publicDir = "artifacts/vanny-konveksi/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21980"
+BASE_PATH = "/"

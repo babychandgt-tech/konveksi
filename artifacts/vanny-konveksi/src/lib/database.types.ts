@@ -15,6 +15,7 @@ export interface Database {
           sizes: string[] | null;
           size_prices: Record<string, number> | null;
           image_url: string | null;
+          image_urls: string[] | null;
           created_at: string;
         };
         Insert: Omit<Database["public"]["Tables"]["products"]["Row"], "id" | "created_at"> & { id?: string; created_at?: string };

@@ -61,13 +61,14 @@ interface FormState {
   min_order: string;
   sizes: string[];
   size_prices: Record<string, string>;
-  image_url: string;
+  image_urls: string[];
 }
 
 const EMPTY_FORM: FormState = {
   name: "", category: "Kaos", material: "", price: "", min_order: "12",
-  sizes: ["M", "L", "XL"], size_prices: {}, image_url: "",
+  sizes: ["M", "L", "XL"], size_prices: {}, image_urls: [],
 };
+const MAX_IMAGES = 6;
 
 export default function Katalog() {
   const { toast } = useToast();
@@ -117,30 +118,57 @@ export default function Katalog() {
     setForm((f) => ({ ...f, size_prices: { ...f.size_prices, [size]: value } }));
   };
 
-  const handleImageUpload = async (file: File) => {
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Ukuran maksimal 5MB", variant: "destructive" });
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const remaining = MAX_IMAGES - form.image_urls.length;
+    if (remaining <= 0) {
+      toast({ title: `Maksimal ${MAX_IMAGES} gambar per produk`, variant: "destructive" });
       return;
     }
+    const list = Array.from(files).slice(0, remaining);
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(fileName, file, {
-      cacheControl: "3600", upsert: false,
-    });
-    setUploading(false);
-    if (error) {
-      toast({
-        title: "Gagal upload gambar",
-        description: error.message + " — pastikan bucket 'product-images' sudah dibuat (public) di Supabase.",
-        variant: "destructive",
+    const uploaded: string[] = [];
+    for (const file of list) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: `${file.name} dilewati`, description: "Ukuran maksimal 5MB", variant: "destructive" });
+        continue;
+      }
+      const ext = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(fileName, file, {
+        cacheControl: "3600", upsert: false,
       });
-      return;
+      if (error) {
+        toast({
+          title: "Gagal upload",
+          description: error.message + " — pastikan bucket 'product-images' sudah ada (public).",
+          variant: "destructive",
+        });
+        continue;
+      }
+      const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
+      uploaded.push(data.publicUrl);
     }
-    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
-    setForm((f) => ({ ...f, image_url: data.publicUrl }));
-    toast({ title: "Gambar berhasil diupload" });
+    setUploading(false);
+    if (uploaded.length > 0) {
+      setForm((f) => ({ ...f, image_urls: [...f.image_urls, ...uploaded] }));
+      toast({ title: `${uploaded.length} gambar diupload` });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeImage = (idx: number) => {
+    setForm((f) => ({ ...f, image_urls: f.image_urls.filter((_, i) => i !== idx) }));
+  };
+
+  const moveImageToFirst = (idx: number) => {
+    setForm((f) => {
+      if (idx === 0) return f;
+      const arr = [...f.image_urls];
+      const [item] = arr.splice(idx, 1);
+      arr.unshift(item);
+      return { ...f, image_urls: arr };
+    });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -163,7 +191,8 @@ export default function Katalog() {
       min_order: parseInt(form.min_order),
       sizes: form.sizes,
       size_prices: sizePricesNum,
-      image_url: form.image_url || null,
+      image_urls: form.image_urls,
+      image_url: form.image_urls[0] || null,
     };
     const { error } = editProduct
       ? await supabase.from("products").update(payload).eq("id", editProduct.id)
@@ -186,10 +215,15 @@ export default function Katalog() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    if (deleteTarget.image_url) {
-      const path = deleteTarget.image_url.split(`/${STORAGE_BUCKET}/`).pop();
-      if (path) await supabase.storage.from(STORAGE_BUCKET).remove([path]);
-    }
+    const allUrls = [
+      ...(deleteTarget.image_urls ?? []),
+      ...(deleteTarget.image_url && !(deleteTarget.image_urls ?? []).includes(deleteTarget.image_url)
+        ? [deleteTarget.image_url] : []),
+    ];
+    const paths = allUrls
+      .map((u) => u.split(`/${STORAGE_BUCKET}/`).pop())
+      .filter((p): p is string => !!p);
+    if (paths.length > 0) await supabase.storage.from(STORAGE_BUCKET).remove(paths);
     const { error } = await supabase.from("products").delete().eq("id", deleteTarget.id);
     setDeleting(false);
     if (error) { toast({ title: "Gagal menghapus", description: error.message, variant: "destructive" }); return; }
@@ -202,10 +236,13 @@ export default function Katalog() {
     setEditProduct(p);
     const sp: Record<string, string> = {};
     if (p.size_prices) Object.entries(p.size_prices).forEach(([k, v]) => { sp[k] = String(v); });
+    const imgs = p.image_urls && p.image_urls.length > 0
+      ? p.image_urls
+      : (p.image_url ? [p.image_url] : []);
     setForm({
       name: p.name, category: p.category, material: p.material,
       price: String(p.price), min_order: String(p.min_order),
-      sizes: p.sizes ?? [], size_prices: sp, image_url: p.image_url ?? "",
+      sizes: p.sizes ?? [], size_prices: sp, image_urls: imgs,
     });
     setAddOpen(true);
   };
@@ -237,48 +274,76 @@ export default function Katalog() {
                   </DialogHeader>
                 </div>
                 <form onSubmit={handleSave} className="p-5 space-y-3.5">
-                  {/* Image */}
+                  {/* Images */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium">Foto Produk</Label>
-                    <div className="flex items-start gap-3">
-                      <div className="w-20 h-20 rounded-lg border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {form.image_url ? (
-                          <img src={form.image_url} alt="preview" className="w-full h-full object-cover" />
-                        ) : (
-                          <ImageIcon className="h-6 w-6 text-gray-300" />
-                        )}
-                      </div>
-                      <div className="flex-1 space-y-1.5">
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
-                        />
-                        <Button
-                          type="button" variant="outline" size="sm"
+                    <Label className="text-xs font-medium">
+                      Foto Produk <span className="text-gray-400">({form.image_urls.length}/{MAX_IMAGES})</span>
+                    </Label>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e.target.files)}
+                    />
+                    <div className="grid grid-cols-4 gap-2">
+                      {form.image_urls.map((url, idx) => (
+                        <div
+                          key={url}
+                          className={`relative aspect-square rounded-lg overflow-hidden border-2 group ${
+                            idx === 0 ? "border-teal-500" : "border-gray-200"
+                          }`}
+                        >
+                          <img src={url} alt={`foto ${idx + 1}`} className="w-full h-full object-cover" />
+                          {idx === 0 && (
+                            <span className="absolute top-1 left-1 text-[9px] font-bold bg-teal-600 text-white px-1.5 py-0.5 rounded">
+                              UTAMA
+                            </span>
+                          )}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                            {idx !== 0 && (
+                              <button
+                                type="button"
+                                onClick={() => moveImageToFirst(idx)}
+                                className="text-[10px] bg-white text-gray-800 px-1.5 py-0.5 rounded font-semibold hover:bg-teal-50"
+                                title="Jadikan utama"
+                              >
+                                Utama
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeImage(idx)}
+                              className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                              title="Hapus"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {form.image_urls.length < MAX_IMAGES && (
+                        <button
+                          type="button"
                           onClick={() => fileInputRef.current?.click()}
                           disabled={uploading}
-                          className="h-8 text-xs border-gray-200 rounded-md w-full"
+                          className="aspect-square rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50/40 transition-colors disabled:opacity-50"
                         >
                           {uploading ? (
-                            <><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Mengupload...</>
+                            <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
-                            <><Upload className="h-3 w-3 mr-1.5" /> {form.image_url ? "Ganti Gambar" : "Pilih Gambar"}</>
+                            <>
+                              <Upload className="h-4 w-4" />
+                              <span className="text-[10px] font-medium">Tambah</span>
+                            </>
                           )}
-                        </Button>
-                        {form.image_url && (
-                          <Button
-                            type="button" variant="ghost" size="sm"
-                            onClick={() => setForm({ ...form, image_url: "" })}
-                            className="h-7 text-xs text-red-500 hover:text-red-600 hover:bg-red-50 w-full"
-                          >
-                            <X className="h-3 w-3 mr-1" /> Hapus gambar
-                          </Button>
-                        )}
-                      </div>
+                        </button>
+                      )}
                     </div>
+                    {form.image_urls.length === 0 && (
+                      <p className="text-[10px] text-gray-400">Bisa pilih beberapa gambar sekaligus. Gambar pertama jadi foto utama.</p>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">
@@ -428,17 +493,29 @@ export default function Katalog() {
               >
                 {/* Image */}
                 <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url} alt={product.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="h-10 w-10 text-gray-300" />
-                    </div>
-                  )}
+                  {(() => {
+                    const imgs = product.image_urls && product.image_urls.length > 0
+                      ? product.image_urls
+                      : (product.image_url ? [product.image_url] : []);
+                    return imgs.length > 0 ? (
+                      <>
+                        <img
+                          src={imgs[0]} alt={product.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        {imgs.length > 1 && (
+                          <span className="absolute bottom-2.5 left-2.5 text-[10px] font-semibold bg-black/60 text-white px-1.5 py-0.5 rounded backdrop-blur-sm inline-flex items-center gap-1">
+                            <ImageIcon className="h-2.5 w-2.5" /> +{imgs.length - 1}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageIcon className="h-10 w-10 text-gray-300" />
+                      </div>
+                    );
+                  })()}
                   <Badge className={`absolute top-2.5 right-2.5 rounded-full px-2.5 text-[11px] font-medium ${
                     product.status === "aktif"
                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"

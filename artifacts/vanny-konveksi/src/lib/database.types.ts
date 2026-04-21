@@ -9,6 +9,7 @@ export interface Database {
           name: string;
           category: string;
           material: string;
+          description: string | null;
           price: number;
           min_order: number;
           status: "aktif" | "tidak_aktif";

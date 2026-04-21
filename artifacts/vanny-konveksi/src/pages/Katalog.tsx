@@ -23,6 +23,7 @@ interface Product {
   name: string;
   category: string;
   material: string;
+  description: string | null;
   price: number;
   min_order: number;
   status: "aktif" | "tidak_aktif";
@@ -57,6 +58,7 @@ interface FormState {
   name: string;
   category: string;
   material: string;
+  description: string;
   price: string;
   min_order: string;
   sizes: string[];
@@ -65,7 +67,7 @@ interface FormState {
 }
 
 const EMPTY_FORM: FormState = {
-  name: "", category: "Kaos", material: "", price: "", min_order: "12",
+  name: "", category: "Kaos", material: "", description: "", price: "", min_order: "12",
   sizes: ["M", "L", "XL"], size_prices: {}, image_urls: [],
 };
 const MAX_IMAGES = 6;
@@ -187,6 +189,7 @@ export default function Katalog() {
       name: form.name,
       category: form.category,
       material: form.material,
+      description: form.description.trim() || null,
       price: parseInt(form.price),
       min_order: parseInt(form.min_order),
       sizes: form.sizes,
@@ -241,6 +244,7 @@ export default function Katalog() {
       : (p.image_url ? [p.image_url] : []);
     setForm({
       name: p.name, category: p.category, material: p.material,
+      description: p.description ?? "",
       price: String(p.price), min_order: String(p.min_order),
       sizes: p.sizes ?? [], size_prices: sp, image_urls: imgs,
     });
@@ -379,6 +383,20 @@ export default function Katalog() {
                       value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })}
                       placeholder="Cotton Combed 30s" className="h-9 border-gray-200 text-sm" required
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">
+                      Deskripsi <span className="text-gray-400">(opsional)</span>
+                    </Label>
+                    <textarea
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      placeholder="Detail produk, keterangan finishing, sablon, dll."
+                      rows={3}
+                      maxLength={500}
+                      className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 resize-none"
+                    />
+                    <p className="text-[10px] text-gray-400 text-right">{form.description.length}/500</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium">Harga Dasar (Rp)</Label>
@@ -532,7 +550,12 @@ export default function Katalog() {
                     <Tag className="h-3 w-3 mr-1 inline" />{product.category}
                   </Badge>
                   <h3 className="font-semibold text-gray-900 text-sm mb-1 leading-snug">{product.name}</h3>
-                  <p className="text-xs text-muted-foreground mb-2">{product.material}</p>
+                  <p className="text-xs text-muted-foreground mb-1.5">{product.material}</p>
+                  {product.description && (
+                    <p className="text-xs text-gray-500 mb-2 line-clamp-2 leading-relaxed" title={product.description}>
+                      {product.description}
+                    </p>
+                  )}
 
                   {/* Sizes with per-size additions */}
                   {product.sizes && product.sizes.length > 0 && (

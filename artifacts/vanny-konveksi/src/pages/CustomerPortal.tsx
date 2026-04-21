@@ -8,7 +8,10 @@ import {
   Loader2, Scissors, LogOut, ShoppingBag, Clock, CheckCircle2, XCircle,
   PackageSearch, LayoutDashboard, User, Menu, ChevronRight, Bell,
   TrendingUp, CalendarClock, CircleDollarSign, Package,
+  Store, Search, Tag, ImageIcon, X, ChevronLeft, Phone,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface Order {
   id: string;
@@ -20,13 +23,41 @@ interface Order {
   created_at: string;
 }
 
-type Section = "beranda" | "pesanan" | "profil";
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  material: string;
+  description: string | null;
+  price: number;
+  min_order: number;
+  status: "aktif" | "tidak_aktif";
+  sizes: string[] | null;
+  size_prices: Record<string, number> | null;
+  image_url: string | null;
+  image_urls: string[] | null;
+}
+
+type Section = "beranda" | "katalog" | "pesanan" | "profil";
 
 const menuItems: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: "beranda", label: "Beranda", icon: LayoutDashboard },
+  { id: "katalog", label: "Katalog Produk", icon: Store },
   { id: "pesanan", label: "Pesanan Saya", icon: ShoppingBag },
   { id: "profil", label: "Profil", icon: User },
 ];
+
+const categoryColors: Record<string, string> = {
+  Kaos:           "bg-teal-50 text-teal-700 border-teal-200",
+  Polo:           "bg-cyan-50 text-cyan-700 border-cyan-200",
+  Kemeja:         "bg-blue-50 text-blue-700 border-blue-200",
+  "Baju Sekolah": "bg-indigo-50 text-indigo-700 border-indigo-200",
+  Olahraga:       "bg-rose-50 text-rose-700 border-rose-200",
+  Seragam:        "bg-amber-50 text-amber-700 border-amber-200",
+  Celana:         "bg-violet-50 text-violet-700 border-violet-200",
+  Jaket:          "bg-orange-50 text-orange-700 border-orange-200",
+  Rompi:          "bg-pink-50 text-pink-700 border-pink-200",
+};
 
 const formatRupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
@@ -70,6 +101,14 @@ export default function CustomerPortal() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
+  // Catalog state
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState("semua");
+  const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
+
   useEffect(() => {
     const fetchOrders = async () => {
       if (!profile) return;
@@ -83,6 +122,38 @@ export default function CustomerPortal() {
     };
     fetchOrders();
   }, [profile]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("*")
+        .eq("status", "aktif")
+        .order("name");
+      if (data) setProducts(data as Product[]);
+      setProductsLoading(false);
+    };
+    fetchProducts();
+  }, []);
+
+  const productCategories = ["semua", ...Array.from(new Set(products.map((p) => p.category)))];
+  const filteredProducts = products.filter((p) => {
+    const matchCat = filterCategory === "semua" || p.category === filterCategory;
+    const matchSearch = !search
+      || p.name.toLowerCase().includes(search.toLowerCase())
+      || p.material.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const openProduct = (p: Product) => {
+    setActiveProduct(p);
+    setActiveImageIdx(0);
+  };
+
+  const productImages = (p: Product) =>
+    p.image_urls && p.image_urls.length > 0
+      ? p.image_urls
+      : (p.image_url ? [p.image_url] : []);
 
   const stats = {
     total: orders.length,
@@ -332,6 +403,131 @@ export default function CustomerPortal() {
                 </div>
               )}
 
+              {/* ===== KATALOG ===== */}
+              {section === "katalog" && (
+                <div className="space-y-5">
+                  <div>
+                    <h2 className="text-xl font-display font-bold text-gray-900">Katalog Produk</h2>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Lihat semua produk yang tersedia. Klik produk untuk lihat detail.
+                    </p>
+                  </div>
+
+                  {/* Filter & Search */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1 max-w-xs">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Cari produk atau bahan..."
+                        className="pl-9 h-9 border-gray-200 text-sm"
+                      />
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {productCategories.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setFilterCategory(cat)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                            filterCategory === cat
+                              ? "bg-teal-600 text-white border-teal-600"
+                              : "bg-white text-gray-600 border-gray-200 hover:border-teal-200 hover:text-teal-700"
+                          }`}
+                        >
+                          {cat === "semua" ? "Semua" : cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {productsLoading ? (
+                    <div className="flex justify-center py-20">
+                      <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+                    </div>
+                  ) : filteredProducts.length === 0 ? (
+                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center">
+                      <Package className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+                      <p className="text-sm font-medium text-gray-500">
+                        {products.length === 0 ? "Belum ada produk tersedia" : "Tidak ada produk yang cocok"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {filteredProducts.map((product, idx) => {
+                        const imgs = productImages(product);
+                        const adds = product.sizes?.map((s) => product.size_prices?.[s] ?? 0) ?? [];
+                        const maxAdd = adds.length ? Math.max(...adds) : 0;
+                        return (
+                          <motion.button
+                            key={product.id}
+                            type="button"
+                            onClick={() => openProduct(product)}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.04 }}
+                            className="text-left bg-white rounded-xl border border-black/[0.07] shadow-sm overflow-hidden hover:shadow-md hover:border-teal-200 transition-all group"
+                          >
+                            <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+                              {imgs.length > 0 ? (
+                                <>
+                                  <img
+                                    src={imgs[0]}
+                                    alt={product.name}
+                                    loading="lazy"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                  />
+                                  {imgs.length > 1 && (
+                                    <span className="absolute bottom-2.5 left-2.5 text-[10px] font-semibold bg-black/60 text-white px-1.5 py-0.5 rounded inline-flex items-center gap-1">
+                                      <ImageIcon className="h-2.5 w-2.5" /> +{imgs.length - 1}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <ImageIcon className="h-10 w-10 text-gray-300" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-4">
+                              <Badge className={`rounded-full px-2.5 py-0.5 text-xs font-medium mb-2 ${
+                                categoryColors[product.category] ?? "bg-gray-100 text-gray-600 border-gray-200"
+                              }`}>
+                                <Tag className="h-3 w-3 mr-1 inline" />{product.category}
+                              </Badge>
+                              <h3 className="font-semibold text-gray-900 text-sm mb-1 leading-snug line-clamp-1">
+                                {product.name}
+                              </h3>
+                              <p className="text-xs text-muted-foreground mb-3 line-clamp-1">{product.material}</p>
+                              <div className="flex items-end justify-between">
+                                <div>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {maxAdd > 0 ? "Mulai" : "Harga"}
+                                  </p>
+                                  <p className="text-base font-display font-bold text-teal-700 leading-tight">
+                                    {formatRupiah(product.price)}
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    Min. {product.min_order} pcs
+                                  </p>
+                                </div>
+                                <span className="text-xs font-medium text-teal-600 group-hover:translate-x-0.5 transition-transform inline-flex items-center gap-0.5">
+                                  Detail <ChevronRight className="h-3.5 w-3.5" />
+                                </span>
+                              </div>
+                            </div>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <p className="text-xs text-muted-foreground">
+                    Menampilkan {filteredProducts.length} dari {products.length} produk aktif
+                  </p>
+                </div>
+              )}
+
               {/* ===== PESANAN ===== */}
               {section === "pesanan" && (
                 <div className="space-y-5">
@@ -456,6 +652,172 @@ export default function CustomerPortal() {
           </div>
         </div>
       </div>
+
+      {/* Product Detail Dialog */}
+      <Dialog open={!!activeProduct} onOpenChange={(o) => !o && setActiveProduct(null)}>
+        <DialogContent className="max-w-3xl bg-white rounded-2xl p-0 overflow-hidden shadow-xl max-h-[90vh] overflow-y-auto">
+          {activeProduct && (() => {
+            const imgs = productImages(activeProduct);
+            const adds = activeProduct.sizes?.map((s) => activeProduct.size_prices?.[s] ?? 0) ?? [];
+            const maxAdd = adds.length ? Math.max(...adds) : 0;
+            return (
+              <div className="grid md:grid-cols-2">
+                {/* Gallery */}
+                <div className="bg-gray-50 relative">
+                  <div className="aspect-square w-full relative overflow-hidden">
+                    {imgs.length > 0 ? (
+                      <img
+                        src={imgs[activeImageIdx]}
+                        alt={activeProduct.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <ImageIcon className="h-16 w-16 text-gray-300" />
+                      </div>
+                    )}
+                    {imgs.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setActiveImageIdx((i) => (i - 1 + imgs.length) % imgs.length)}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md flex items-center justify-center hover:bg-white transition-colors"
+                        >
+                          <ChevronLeft className="h-5 w-5 text-gray-700" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveImageIdx((i) => (i + 1) % imgs.length)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 shadow-md flex items-center justify-center hover:bg-white transition-colors"
+                        >
+                          <ChevronRight className="h-5 w-5 text-gray-700" />
+                        </button>
+                        <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
+                          {activeImageIdx + 1} / {imgs.length}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {imgs.length > 1 && (
+                    <div className="flex gap-1.5 p-3 overflow-x-auto">
+                      {imgs.map((url, i) => (
+                        <button
+                          key={url}
+                          type="button"
+                          onClick={() => setActiveImageIdx(i)}
+                          className={`w-14 h-14 rounded-md overflow-hidden border-2 flex-shrink-0 transition-colors ${
+                            i === activeImageIdx ? "border-teal-500" : "border-transparent hover:border-gray-300"
+                          }`}
+                        >
+                          <img src={url} alt={`thumb ${i + 1}`} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Detail */}
+                <div className="p-6 space-y-4 relative">
+                  <button
+                    type="button"
+                    onClick={() => setActiveProduct(null)}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 md:hidden"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+
+                  <Badge className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    categoryColors[activeProduct.category] ?? "bg-gray-100 text-gray-600 border-gray-200"
+                  }`}>
+                    <Tag className="h-3 w-3 mr-1 inline" />{activeProduct.category}
+                  </Badge>
+
+                  <div>
+                    <h2 className="text-xl font-display font-bold text-gray-900 leading-tight">
+                      {activeProduct.name}
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">{activeProduct.material}</p>
+                  </div>
+
+                  <div className="bg-teal-50/60 border border-teal-100 rounded-xl p-4">
+                    <p className="text-[11px] text-teal-700/70 font-medium uppercase tracking-wide">
+                      {maxAdd > 0 ? "Harga mulai dari" : "Harga satuan"}
+                    </p>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <p className="text-2xl font-display font-bold text-teal-700">
+                        {formatRupiah(activeProduct.price)}
+                      </p>
+                      {maxAdd > 0 && (
+                        <p className="text-sm text-gray-500">
+                          s/d {formatRupiah(activeProduct.price + maxAdd)}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Minimum order {activeProduct.min_order} pcs
+                    </p>
+                  </div>
+
+                  {activeProduct.description && (
+                    <div>
+                      <p className="text-[11px] text-gray-500 uppercase font-semibold tracking-wide mb-1.5">
+                        Deskripsi
+                      </p>
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                        {activeProduct.description}
+                      </p>
+                    </div>
+                  )}
+
+                  {activeProduct.sizes && activeProduct.sizes.length > 0 && (
+                    <div>
+                      <p className="text-[11px] text-gray-500 uppercase font-semibold tracking-wide mb-2">
+                        Ukuran tersedia
+                      </p>
+                      <div className="space-y-1.5">
+                        {activeProduct.sizes.map((s) => {
+                          const add = activeProduct.size_prices?.[s] ?? 0;
+                          const totalPrice = activeProduct.price + add;
+                          return (
+                            <div
+                              key={s}
+                              className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2"
+                            >
+                              <span className="text-sm font-semibold text-gray-800 w-12">{s}</span>
+                              <div className="text-right">
+                                <span className="text-sm font-semibold text-teal-700">
+                                  {formatRupiah(totalPrice)}
+                                </span>
+                                {add > 0 && (
+                                  <span className="text-[11px] text-gray-500 ml-1.5">
+                                    (+{formatRupiah(add)})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-gray-100">
+                    <p className="text-xs text-muted-foreground mb-2">Tertarik memesan produk ini?</p>
+                    <a
+                      href="https://wa.me/6281234567890"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full inline-flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg h-10 text-sm font-semibold transition-colors"
+                    >
+                      <Phone className="h-4 w-4" /> Hubungi Admin
+                    </a>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

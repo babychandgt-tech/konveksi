@@ -1,0 +1,32 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "iyewlNxAZmRuDWjykM5wV"
+uri = "file://artifacts/vanny-konveksi/public/images/hero-workshop.png"
+type = "image"
+title = "Close up sewing machine fabric"
+
+[[generated]]
+id = "TJjefcp0iceXQjXbpnxDb"
+uri = "file://artifacts/vanny-konveksi/public/images/folded-shirts.png"
+type = "image"
+title = "Stack of folded t-shirts"
+
+[[generated]]
+id = "0zAvc5HZ7k-c4kucVsBor"
+uri = "file://artifacts/vanny-konveksi/public/images/screen-printing.png"
+type = "image"
+title = "Screen printing squeegee ink"
+
+[[generated]]
+id = "uHXJWHwHO_SXG_stgt5kF"
+uri = "file://artifacts/vanny-konveksi/public/images/tailor-tools.png"
+type = "image"
+title = "Tailor tools on table"
+
+[[generated]]
+id = "x7iRGeYpSr8Ce6KdT9XYQ"
+uri = "file://artifacts/vanny-konveksi/public/images/embroidered-jacket.png"
+type = "image"
+title = "Custom embroidered jacket"

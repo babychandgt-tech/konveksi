@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, ShoppingBag, ShoppingCart, Users, Scissors,
   CircleDollarSign, UserSquare2, Settings, LogOut, Bell, Menu, ChevronRight,
+  ShieldCheck,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth, UserRole } from "@/lib/auth";
@@ -26,6 +27,7 @@ const menuItems: MenuItem[] = [
   { path: "/produksi", label: "Produksi", icon: Scissors, roles: ["admin", "karyawan"] },
   { path: "/keuangan", label: "Keuangan", icon: CircleDollarSign, roles: ["admin"] },
   { path: "/pelanggan", label: "Pelanggan", icon: UserSquare2, roles: ["admin", "karyawan"] },
+  { path: "/pengguna", label: "Pengguna", icon: ShieldCheck, roles: ["admin"] },
   { path: "/pengaturan", label: "Pengaturan", icon: Settings, roles: ["admin"] },
 ];
 

@@ -15,6 +15,7 @@ import Pegawai from "@/pages/Pegawai";
 import Produksi from "@/pages/Produksi";
 import Keuangan from "@/pages/Keuangan";
 import Pelanggan from "@/pages/Pelanggan";
+import Pengguna from "@/pages/Pengguna";
 import Pengaturan from "@/pages/Pengaturan";
 import CustomerPortal from "@/pages/CustomerPortal";
 
@@ -92,6 +93,12 @@ function Router() {
       <Route path="/pelanggan">
         <ProtectedRoute allowedRoles={["admin", "karyawan"]}>
           <Pelanggan />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/pengguna">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <Pengguna />
         </ProtectedRoute>
       </Route>
 

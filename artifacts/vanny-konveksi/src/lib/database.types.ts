@@ -79,6 +79,17 @@ export interface Database {
         Insert: Omit<Database["public"]["Tables"]["production_tasks"]["Row"], "id" | "created_at"> & { id?: string; created_at?: string };
         Update: Partial<Database["public"]["Tables"]["production_tasks"]["Insert"]>;
       };
+      profiles: {
+        Row: {
+          id: string;
+          full_name: string;
+          email: string | null;
+          role: "admin" | "karyawan" | "pelanggan";
+          created_at: string;
+        };
+        Insert: Omit<Database["public"]["Tables"]["profiles"]["Row"], "created_at"> & { created_at?: string };
+        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+      };
       transactions: {
         Row: {
           id: string;

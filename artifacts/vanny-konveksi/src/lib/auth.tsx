@@ -7,6 +7,7 @@ export type UserRole = "admin" | "karyawan" | "pelanggan";
 export interface Profile {
   id: string;
   full_name: string;
+  email: string | null;
   role: UserRole;
   created_at: string;
 }
@@ -84,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
       options: {
-        data: { full_name: fullName, role },
+        data: { full_name: fullName, role, email },
       },
     });
     if (error) return { error: error.message };

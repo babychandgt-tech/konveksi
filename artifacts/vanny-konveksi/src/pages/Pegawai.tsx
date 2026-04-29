@@ -7,12 +7,20 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { motion } from "framer-motion";
 import { supabase, supabaseAdminCreate } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Users, UserCheck, Umbrella, Loader2, RefreshCw, Search, UserPlus,
   Phone, CalendarDays, Mail, KeyRound, Eye, EyeOff, UserCircle2, ShieldCheck,
+  MoreVertical, Pencil, Trash2,
 } from "lucide-react";
 
 interface Employee {
@@ -72,6 +80,17 @@ export default function Pegawai() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Employee | null>(null);
+  const [editForm, setEditForm] = useState({
+    phone: "",
+    joined_at: "",
+    status: "aktif" as "aktif" | "cuti" | "tidak_aktif",
+  });
+
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -174,6 +193,56 @@ export default function Pegawai() {
     fetchData();
   };
 
+  const openEdit = (emp: Employee) => {
+    setEditTarget(emp);
+    setEditForm({
+      phone: emp.phone ?? "",
+      joined_at: emp.joined_at,
+      status: emp.status,
+    });
+    setEditOpen(true);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    setSaving(true);
+    const payload = {
+      phone: editForm.phone.trim() || null,
+      joined_at: editForm.joined_at,
+      status: editForm.status,
+    };
+    const { error } = await supabase
+      .from("employees")
+      .update(payload as never)
+      .eq("id", editTarget.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Gagal memperbarui", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Data pegawai diperbarui", description: editTarget.name });
+    setEmployees((prev) =>
+      prev.map((p) => (p.id === editTarget.id ? { ...p, ...payload } : p))
+    );
+    setEditOpen(false);
+    setEditTarget(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase.from("employees").delete().eq("id", deleteTarget.id);
+    setDeleting(false);
+    if (error) {
+      toast({ title: "Gagal menghapus", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Pegawai dihapus", description: deleteTarget.name });
+    setEmployees((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+    setDeleteTarget(null);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-5">
@@ -248,6 +317,7 @@ export default function Pegawai() {
                       <TableHead className="text-xs font-semibold text-gray-600">Telepon</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600">Bergabung</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600">Status</TableHead>
+                      <TableHead className="text-xs font-semibold text-gray-600 text-right pr-3">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -278,6 +348,25 @@ export default function Pegawai() {
                             {STATUS_LABEL[emp.status]}
                           </Badge>
                         </TableCell>
+                        <TableCell className="text-right pr-3">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem onClick={() => openEdit(emp)} className="text-sm gap-2">
+                                <Pencil className="h-3.5 w-3.5" /> Edit Data
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => setDeleteTarget(emp)}
+                                className="text-sm gap-2 text-red-600 focus:text-red-700 focus:bg-red-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Hapus
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </motion.tr>
                     ))}
                   </TableBody>
@@ -296,10 +385,31 @@ export default function Pegawai() {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{emp.name}</p>
-                          <Badge className={`rounded-full px-2.5 text-[10px] font-medium shrink-0 ${STATUS_CFG[emp.status]}`}>
-                            {STATUS_LABEL[emp.status]}
-                          </Badge>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{emp.name}</p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Badge className={`rounded-full px-2.5 text-[10px] font-medium ${STATUS_CFG[emp.status]}`}>
+                              {STATUS_LABEL[emp.status]}
+                            </Badge>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 -mr-1.5"><MoreVertical className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem onClick={() => openEdit(emp)} className="text-sm gap-2">
+                                  <Pencil className="h-3.5 w-3.5" /> Edit Data
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setDeleteTarget(emp)}
+                                  className="text-sm gap-2 text-red-600 focus:text-red-700 focus:bg-red-50"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" /> Hapus
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2 mt-2 flex-wrap text-[11px] text-gray-500">
                           {emp.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {emp.phone}</span>}
@@ -471,6 +581,104 @@ export default function Pegawai() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-md bg-white rounded-2xl p-0 overflow-hidden shadow-xl">
+          <div className="p-5 border-b border-gray-100 bg-teal-50/40">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-display font-bold flex items-center gap-2">
+                <Pencil className="h-4 w-4 text-teal-600" />
+                Edit Data Pegawai
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+          {editTarget && (
+            <form onSubmit={handleEdit} className="p-5 space-y-4">
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-teal-100 text-teal-700 text-xs font-bold">{getInitials(editTarget.name)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{editTarget.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{editTarget.role} • {editTarget.department}</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium flex items-center gap-1.5"><Phone className="h-3 w-3" /> No. Telepon</Label>
+                <Input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  placeholder="08xxxxxxxx"
+                  className="h-9 border-gray-200 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium flex items-center gap-1.5"><CalendarDays className="h-3 w-3" /> Tanggal Bergabung</Label>
+                <Input
+                  type="date"
+                  value={editForm.joined_at}
+                  onChange={(e) => setEditForm({ ...editForm, joined_at: e.target.value })}
+                  className="h-9 border-gray-200 text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Status</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["aktif", "cuti", "tidak_aktif"] as const).map((s) => {
+                    const active = editForm.status === s;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, status: s })}
+                        className={`py-2 rounded-lg border-2 text-xs font-semibold transition-all ${
+                          active ? "border-teal-500 bg-teal-50/50 text-teal-700" : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        {STATUS_LABEL[s]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <Button type="button" variant="outline" onClick={() => setEditOpen(false)} className="border-gray-200 rounded-lg h-9 text-sm">Batal</Button>
+                <Button type="submit" disabled={saving} className="bg-teal-600 hover:bg-teal-700 text-white rounded-lg h-9 text-sm font-semibold">
+                  {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />} Simpan Perubahan
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus pegawai?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Data <span className="font-semibold">{deleteTarget?.name}</span> dari daftar pegawai akan dihapus.
+              Akun login user tetap aktif di sistem.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />} Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

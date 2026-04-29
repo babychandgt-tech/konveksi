@@ -9,3 +9,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+
+export const supabaseAdminCreate = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storageKey: "sb-vanny-admin-create",
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false,
+  },
+});

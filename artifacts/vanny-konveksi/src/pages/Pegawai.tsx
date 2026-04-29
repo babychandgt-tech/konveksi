@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,10 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdminCreate } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, Users, UserCheck, Umbrella, Loader2, RefreshCw, Search, UserPlus, Info, Phone, CalendarDays,
+  Plus, Users, UserCheck, Umbrella, Loader2, RefreshCw, Search, UserPlus,
+  Phone, CalendarDays, Mail, KeyRound, Eye, EyeOff, UserCircle2, ShieldCheck,
 } from "lucide-react";
 
 interface Employee {
@@ -22,13 +23,6 @@ interface Employee {
   status: "aktif" | "cuti" | "tidak_aktif";
   phone: string | null;
   joined_at: string;
-}
-
-interface KaryawanProfile {
-  id: string;
-  full_name: string;
-  email: string | null;
-  created_at: string;
 }
 
 const avatarColors = [
@@ -49,17 +43,21 @@ const DEFAULT_DIVISION = "Produksi";
 const DEFAULT_ROLE = "Staf Produksi";
 
 interface FormState {
-  profileId: string;
-  status: "aktif" | "cuti" | "tidak_aktif";
+  fullName: string;
+  email: string;
+  password: string;
   phone: string;
   joined_at: string;
+  status: "aktif" | "cuti" | "tidak_aktif";
 }
 
 const EMPTY_FORM: FormState = {
-  profileId: "",
-  status: "aktif",
+  fullName: "",
+  email: "",
+  password: "",
   phone: "",
   joined_at: new Date().toISOString().split("T")[0],
+  status: "aktif",
 };
 
 const getInitials = (name: string) =>
@@ -68,82 +66,109 @@ const getInitials = (name: string) =>
 export default function Pegawai() {
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [profiles, setProfiles] = useState<KaryawanProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [profileSearch, setProfileSearch] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [empRes, profRes] = await Promise.all([
-      supabase.from("employees").select("*").order("name"),
-      supabase.from("profiles").select("id, full_name, email, created_at").eq("role", "karyawan").order("full_name"),
-    ]);
-    if (empRes.data) setEmployees(empRes.data as Employee[]);
-    if (profRes.data) setProfiles(profRes.data as KaryawanProfile[]);
+    const { data } = await supabase.from("employees").select("*").order("name");
+    if (data) setEmployees(data as Employee[]);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-
-  const employeeIds = useMemo(() => new Set(employees.map((e) => e.id)), [employees]);
-
-  const availableProfiles = useMemo(
-    () => profiles
-      .filter((p) => !employeeIds.has(p.id))
-      .filter((p) => !profileSearch ||
-        p.full_name.toLowerCase().includes(profileSearch.toLowerCase()) ||
-        p.email?.toLowerCase().includes(profileSearch.toLowerCase())),
-    [profiles, employeeIds, profileSearch]
-  );
-
-  const selectedProfile = useMemo(
-    () => profiles.find((p) => p.id === form.profileId) ?? null,
-    [profiles, form.profileId]
-  );
 
   const filtered = employees.filter(
     (e) => !search || e.name.toLowerCase().includes(search.toLowerCase())
   );
 
   const stats = {
-    total:  employees.length,
-    aktif:  employees.filter((e) => e.status === "aktif").length,
-    cuti:   employees.filter((e) => e.status === "cuti").length,
+    total: employees.length,
+    aktif: employees.filter((e) => e.status === "aktif").length,
+    cuti:  employees.filter((e) => e.status === "cuti").length,
   };
 
   const openAdd = () => {
     setForm(EMPTY_FORM);
-    setProfileSearch("");
+    setShowPassword(false);
     setAddOpen(true);
+  };
+
+  const generatePassword = () => {
+    const chars = "abcdefghjkmnpqrstuvwxyz23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+    let pwd = "";
+    for (let i = 0; i < 10; i++) pwd += chars[Math.floor(Math.random() * chars.length)];
+    setForm((f) => ({ ...f, password: pwd }));
+    setShowPassword(true);
   };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProfile) {
-      toast({ title: "Pilih akun karyawan dulu", variant: "destructive" });
+    const fullName = form.fullName.trim();
+    const email = form.email.trim().toLowerCase();
+    if (!fullName || !email || !form.password) {
+      toast({ title: "Lengkapi data dulu", description: "Nama, email, dan kata sandi wajib diisi.", variant: "destructive" });
       return;
     }
+    if (form.password.length < 6) {
+      toast({ title: "Kata sandi terlalu pendek", description: "Minimal 6 karakter.", variant: "destructive" });
+      return;
+    }
+
     setSaving(true);
+
+    const { data: signUpData, error: signUpError } = await supabaseAdminCreate.auth.signUp({
+      email,
+      password: form.password,
+      options: {
+        data: { full_name: fullName, role: "karyawan", email },
+      },
+    });
+
+    if (signUpError || !signUpData.user) {
+      setSaving(false);
+      toast({
+        title: "Gagal membuat akun",
+        description: signUpError?.message ?? "Pengguna tidak dapat dibuat.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newUserId = signUpData.user.id;
+
     const payload = {
-      id: selectedProfile.id,
-      name: selectedProfile.full_name,
+      id: newUserId,
+      name: fullName,
       role: DEFAULT_ROLE,
       department: DEFAULT_DIVISION,
       status: form.status,
-      phone: form.phone || null,
+      phone: form.phone.trim() || null,
       joined_at: form.joined_at,
     };
-    const { error } = await supabase.from("employees").insert(payload as never);
+
+    const { error: empError } = await supabase.from("employees").insert(payload as never);
+
+    await supabaseAdminCreate.auth.signOut();
     setSaving(false);
-    if (error) {
-      toast({ title: "Gagal menyimpan", description: error.message, variant: "destructive" });
+
+    if (empError) {
+      toast({
+        title: "Akun dibuat, tapi data pegawai gagal disimpan",
+        description: empError.message,
+        variant: "destructive",
+      });
       return;
     }
-    toast({ title: "Pegawai ditambahkan", description: selectedProfile.full_name });
+
+    toast({
+      title: "Pegawai berhasil ditambahkan",
+      description: `Akun untuk ${fullName} sudah dibuat.`,
+    });
     setAddOpen(false);
     setForm(EMPTY_FORM);
     fetchData();
@@ -155,7 +180,7 @@ export default function Pegawai() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-display font-bold text-gray-900">Data Pegawai</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Kelola data dan status pegawai konveksi.</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Kelola data dan akun pegawai konveksi.</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={fetchData} className="border-gray-200 h-9 rounded-lg">
@@ -208,8 +233,8 @@ export default function Pegawai() {
             <div className="text-center py-16 px-4">
               <Users className="h-10 w-10 text-gray-300 mx-auto mb-3" />
               <p className="text-sm text-gray-500 mb-1">{employees.length === 0 ? "Belum ada pegawai terdaftar." : "Tidak ada hasil yang cocok."}</p>
-              {employees.length === 0 && availableProfiles.length > 0 && (
-                <p className="text-xs text-gray-400">Klik <span className="font-semibold">Tambah Pegawai</span> untuk pilih dari {availableProfiles.length} akun karyawan tersedia.</p>
+              {employees.length === 0 && (
+                <p className="text-xs text-gray-400">Klik <span className="font-semibold">Tambah Pegawai</span> untuk membuat akun pegawai pertama.</p>
               )}
             </div>
           ) : (
@@ -294,115 +319,153 @@ export default function Pegawai() {
         </div>
       </div>
 
-      {/* Tambah Dialog */}
+      {/* Tambah Pegawai Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-md bg-white rounded-2xl p-0 overflow-hidden shadow-xl">
+        <DialogContent className="max-w-lg bg-white rounded-2xl p-0 overflow-hidden shadow-xl">
           <div className="p-5 border-b border-gray-100 bg-teal-50/40">
             <DialogHeader>
               <DialogTitle className="text-lg font-display font-bold flex items-center gap-2">
                 <UserPlus className="h-4 w-4 text-teal-600" />
-                Tambah Pegawai Baru
+                Buat Akun Pegawai Baru
               </DialogTitle>
+              <p className="text-xs text-gray-500 mt-1">
+                Akun login akan dibuat otomatis dengan peran <span className="font-semibold text-teal-700">karyawan</span>.
+              </p>
             </DialogHeader>
           </div>
-          <form onSubmit={handleAdd} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Pilih Akun Karyawan</Label>
-              {selectedProfile ? (
-                <div className="flex items-center gap-3 p-3 rounded-lg border border-teal-200 bg-teal-50/40">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-teal-100 text-teal-700 text-xs font-bold">{getInitials(selectedProfile.full_name)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{selectedProfile.full_name}</p>
-                    <p className="text-xs text-gray-500 truncate">{selectedProfile.email ?? "Tanpa email"}</p>
-                  </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setForm({ ...form, profileId: "" })} className="h-7 text-xs text-teal-700 hover:text-teal-800">
-                    Ganti
-                  </Button>
+
+          <form onSubmit={handleAdd} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto scrollbar-hide">
+            {/* Section: Akun Login */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-3.5 w-3.5 text-teal-600" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Akun Login</span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  <UserCircle2 className="h-3 w-3 text-gray-400" /> Nama Lengkap <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  value={form.fullName}
+                  onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                  placeholder="Budi Santoso"
+                  className="h-9 border-gray-200 text-sm"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  <Mail className="h-3 w-3 text-gray-400" /> Email <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="budi@vannykonveksi.com"
+                  className="h-9 border-gray-200 text-sm"
+                  required
+                />
+                <p className="text-[10px] text-gray-400">Pegawai pakai email ini untuk login.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium flex items-center gap-1.5">
+                  <KeyRound className="h-3 w-3 text-gray-400" /> Kata Sandi <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="Minimal 6 karakter"
+                    className="h-9 border-gray-200 text-sm pr-20"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
                 </div>
-              ) : (
-                <>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                    <Input
-                      value={profileSearch}
-                      onChange={(e) => setProfileSearch(e.target.value)}
-                      placeholder="Cari akun karyawan..."
-                      className="h-9 pl-9 border-gray-200 text-sm"
-                    />
-                  </div>
-                  <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto divide-y divide-gray-100">
-                    {availableProfiles.length === 0 ? (
-                      <div className="p-4 text-center">
-                        <Info className="h-5 w-5 text-gray-300 mx-auto mb-1.5" />
-                        <p className="text-xs text-gray-500">
-                          {profiles.length === 0
-                            ? "Belum ada akun dengan peran karyawan."
-                            : profileSearch
-                              ? "Tidak ada akun cocok."
-                              : "Semua akun karyawan sudah terdaftar."}
-                        </p>
-                      </div>
-                    ) : (
-                      availableProfiles.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => { setForm({ ...form, profileId: p.id }); setProfileSearch(""); }}
-                          className="w-full flex items-center gap-3 p-2.5 text-left hover:bg-teal-50/40 transition-colors"
-                        >
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-gray-100 text-gray-600 text-xs font-semibold">{getInitials(p.full_name)}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{p.full_name}</p>
-                            <p className="text-xs text-gray-500 truncate">{p.email ?? "Tanpa email"}</p>
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
+                <button
+                  type="button"
+                  onClick={generatePassword}
+                  className="text-[11px] text-teal-700 hover:text-teal-800 font-medium"
+                >
+                  + Buatkan kata sandi acak
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Section: Detail Kepegawaian */}
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center gap-2">
+                <Users className="h-3.5 w-3.5 text-teal-600" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Detail Kepegawaian</span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    <Phone className="h-3 w-3 text-gray-400" /> No. Telepon
+                  </Label>
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="08xxxxxxxx"
+                    className="h-9 border-gray-200 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium flex items-center gap-1.5">
+                    <CalendarDays className="h-3 w-3 text-gray-400" /> Tanggal Bergabung
+                  </Label>
+                  <Input
+                    type="date"
+                    value={form.joined_at}
+                    onChange={(e) => setForm({ ...form, joined_at: e.target.value })}
+                    className="h-9 border-gray-200 text-sm"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium flex items-center gap-1.5"><Phone className="h-3 w-3" /> No. Telepon</Label>
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="08xxxxxxxx" className="h-9 border-gray-200 text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium flex items-center gap-1.5"><CalendarDays className="h-3 w-3" /> Tanggal Bergabung</Label>
-                <Input type="date" value={form.joined_at} onChange={(e) => setForm({ ...form, joined_at: e.target.value })} className="h-9 border-gray-200 text-sm" />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium">Status</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {(["aktif", "cuti", "tidak_aktif"] as const).map((s) => {
-                  const active = form.status === s;
-                  return (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setForm({ ...form, status: s })}
-                      className={`py-2 rounded-lg border-2 text-xs font-semibold transition-all ${
-                        active ? "border-teal-500 bg-teal-50/50 text-teal-700" : "border-gray-200 text-gray-600 hover:border-gray-300"
-                      }`}
-                    >
-                      {STATUS_LABEL[s]}
-                    </button>
-                  );
-                })}
+                <Label className="text-xs font-medium">Status</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["aktif", "cuti", "tidak_aktif"] as const).map((s) => {
+                    const active = form.status === s;
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setForm({ ...form, status: s })}
+                        className={`py-2 rounded-lg border-2 text-xs font-semibold transition-all ${
+                          active ? "border-teal-500 bg-teal-50/50 text-teal-700" : "border-gray-200 text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        {STATUS_LABEL[s]}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="outline" onClick={() => setAddOpen(false)} className="border-gray-200 rounded-lg h-9 text-sm">Batal</Button>
-              <Button type="submit" disabled={saving || !selectedProfile} className="bg-teal-600 hover:bg-teal-700 text-white rounded-lg h-9 text-sm font-semibold">
-                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />} Simpan
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)} className="border-gray-200 rounded-lg h-9 text-sm">
+                Batal
+              </Button>
+              <Button type="submit" disabled={saving} className="bg-teal-600 hover:bg-teal-700 text-white rounded-lg h-9 text-sm font-semibold">
+                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+                {saving ? "Menyimpan..." : "Buat Akun & Simpan"}
               </Button>
             </div>
           </form>

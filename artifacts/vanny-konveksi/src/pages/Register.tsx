@@ -86,11 +86,6 @@ export default function Register() {
             <p className="mt-1 text-sm text-gray-500">
               Daftar sebagai <span className="font-semibold text-teal-700">Pelanggan</span> untuk mulai memesan.
             </p>
-            <div className="mt-3 px-3 py-2 rounded-lg bg-teal-50/60 border border-teal-100">
-              <p className="text-[11px] text-teal-800 leading-relaxed">
-                Untuk akun karyawan, hubungi admin — pendaftaran karyawan dilakukan dari dashboard internal.
-              </p>
-            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

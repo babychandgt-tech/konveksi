@@ -7,12 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, Users, UserCheck, Umbrella, Loader2, RefreshCw, Search, UserPlus, Info, Phone, CalendarDays, Briefcase, Building2,
+  Plus, Users, UserCheck, Umbrella, Loader2, RefreshCw, Search, UserPlus, Info, Phone, CalendarDays,
 } from "lucide-react";
 
 interface Employee {
@@ -46,12 +45,11 @@ const STATUS_CFG: Record<string, string> = {
 };
 const STATUS_LABEL: Record<string, string> = { aktif: "Aktif", cuti: "Cuti", tidak_aktif: "Tidak Aktif" };
 
-const DEPARTMENTS = ["Manajemen", "Produksi", "QA/QC", "Desain", "Keuangan", "Logistik", "Pemasaran", "Lainnya"];
+const DEFAULT_DIVISION = "Produksi";
+const DEFAULT_ROLE = "Staf Produksi";
 
 interface FormState {
   profileId: string;
-  role: string;
-  department: string;
   status: "aktif" | "cuti" | "tidak_aktif";
   phone: string;
   joined_at: string;
@@ -59,8 +57,6 @@ interface FormState {
 
 const EMPTY_FORM: FormState = {
   profileId: "",
-  role: "",
-  department: "Produksi",
   status: "aktif",
   phone: "",
   joined_at: new Date().toISOString().split("T")[0],
@@ -110,10 +106,7 @@ export default function Pegawai() {
   );
 
   const filtered = employees.filter(
-    (e) => !search ||
-      e.name.toLowerCase().includes(search.toLowerCase()) ||
-      e.role.toLowerCase().includes(search.toLowerCase()) ||
-      e.department.toLowerCase().includes(search.toLowerCase())
+    (e) => !search || e.name.toLowerCase().includes(search.toLowerCase())
   );
 
   const stats = {
@@ -134,16 +127,12 @@ export default function Pegawai() {
       toast({ title: "Pilih akun karyawan dulu", variant: "destructive" });
       return;
     }
-    if (!form.role.trim()) {
-      toast({ title: "Jabatan wajib diisi", variant: "destructive" });
-      return;
-    }
     setSaving(true);
     const payload = {
       id: selectedProfile.id,
       name: selectedProfile.full_name,
-      role: form.role,
-      department: form.department,
+      role: DEFAULT_ROLE,
+      department: DEFAULT_DIVISION,
       status: form.status,
       phone: form.phone || null,
       joined_at: form.joined_at,
@@ -210,7 +199,7 @@ export default function Pegawai() {
           <div className="p-4 border-b border-gray-100">
             <div className="relative max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama, jabatan, divisi..." className="pl-9 h-9 border-gray-200 text-sm" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama pegawai..." className="pl-9 h-9 border-gray-200 text-sm" />
             </div>
           </div>
           {loading ? (
@@ -231,8 +220,6 @@ export default function Pegawai() {
                   <TableHeader>
                     <TableRow className="border-gray-100 hover:bg-transparent bg-gray-50/40">
                       <TableHead className="text-xs font-semibold text-gray-600 py-3 px-5">Pegawai</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600">Jabatan</TableHead>
-                      <TableHead className="text-xs font-semibold text-gray-600">Divisi</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600">Telepon</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600">Bergabung</TableHead>
                       <TableHead className="text-xs font-semibold text-gray-600">Status</TableHead>
@@ -257,8 +244,6 @@ export default function Pegawai() {
                             <p className="text-sm font-semibold text-gray-900">{emp.name}</p>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-700">{emp.role}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{emp.department}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{emp.phone ?? "-"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {new Date(emp.joined_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
@@ -286,18 +271,15 @@ export default function Pegawai() {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{emp.name}</p>
-                            <p className="text-xs text-gray-500 truncate">{emp.role}</p>
-                          </div>
+                          <p className="text-sm font-semibold text-gray-900 truncate">{emp.name}</p>
                           <Badge className={`rounded-full px-2.5 text-[10px] font-medium shrink-0 ${STATUS_CFG[emp.status]}`}>
                             {STATUS_LABEL[emp.status]}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2 mt-2 flex-wrap text-[11px] text-gray-500">
-                          <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {emp.department}</span>
-                          {emp.phone && <span className="flex items-center gap-1">• <Phone className="h-3 w-3" /> {emp.phone}</span>}
-                          <span className="flex items-center gap-1">• <CalendarDays className="h-3 w-3" /> {new Date(emp.joined_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+                          {emp.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {emp.phone}</span>}
+                          {emp.phone && <span>•</span>}
+                          <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {new Date(emp.joined_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
                         </div>
                       </div>
                     </div>
@@ -385,21 +367,7 @@ export default function Pegawai() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium flex items-center gap-1.5"><Briefcase className="h-3 w-3" /> Jabatan</Label>
-                <Input value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="Operator Cutting" className="h-9 border-gray-200 text-sm" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium flex items-center gap-1.5"><Building2 className="h-3 w-3" /> Divisi</Label>
-                <Select value={form.department} onValueChange={(v) => setForm({ ...form, department: v })}>
-                  <SelectTrigger className="h-9 border-gray-200 text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>{DEPARTMENTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium flex items-center gap-1.5"><Phone className="h-3 w-3" /> No. Telepon</Label>
                 <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="08xxxxxxxx" className="h-9 border-gray-200 text-sm" />

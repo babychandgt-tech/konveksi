@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, Loader2, Scissors } from "lucide-react";
+import { Eye, EyeOff, Loader2, Scissors, UserCircle2, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 
@@ -14,7 +14,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ fullName: "", email: "", password: "" });
+  const [form, setForm] = useState({ fullName: "", companyName: "", email: "", password: "" });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -28,7 +28,7 @@ export default function Register() {
       return;
     }
     setLoading(true);
-    const { error } = await register(form.email, form.password, form.fullName, "pelanggan");
+    const { error } = await register(form.email, form.password, form.fullName, "pelanggan", form.companyName);
     setLoading(false);
     if (error) {
       setError(error);
@@ -58,7 +58,7 @@ export default function Register() {
             Bergabung dengan<br />platform kami
           </h2>
           <p className="text-teal-100/70 text-base leading-relaxed max-w-xs">
-            Daftar sebagai pelanggan untuk melacak pesanan, atau karyawan untuk mengelola produksi.
+            Daftar sebagai pelanggan untuk memesan produk dan melacak status pesananmu kapan saja.
           </p>
         </div>
 
@@ -83,19 +83,42 @@ export default function Register() {
 
           <div className="mb-6">
             <h2 className="text-2xl font-display font-bold text-gray-900">Buat Akun Baru</h2>
-            <p className="mt-1 text-sm text-gray-500">Isi data di bawah untuk mendaftar.</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Daftar sebagai <span className="font-semibold text-teal-700">Pelanggan</span> untuk mulai memesan.
+            </p>
+            <div className="mt-3 px-3 py-2 rounded-lg bg-teal-50/60 border border-teal-100">
+              <p className="text-[11px] text-teal-800 leading-relaxed">
+                Untuk akun karyawan, hubungi admin — pendaftaran karyawan dilakukan dari dashboard internal.
+              </p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-gray-700">Nama Lengkap / Nama Perusahaan</Label>
+              <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                <UserCircle2 className="h-3.5 w-3.5 text-gray-400" /> Nama Lengkap
+              </Label>
               <Input
                 name="fullName"
-                placeholder="PT Maju Mundur / Budi Santoso"
+                placeholder="Budi Santoso"
                 value={form.fullName}
                 onChange={handleChange}
                 className="h-10 border-gray-200 focus-visible:ring-teal-500"
                 required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-gray-400" /> Nama Instansi
+                <span className="text-[10px] font-normal text-gray-400">(opsional)</span>
+              </Label>
+              <Input
+                name="companyName"
+                placeholder="PT Maju Mundur (kosongkan jika perorangan)"
+                value={form.companyName}
+                onChange={handleChange}
+                className="h-10 border-gray-200 focus-visible:ring-teal-500"
               />
             </div>
 

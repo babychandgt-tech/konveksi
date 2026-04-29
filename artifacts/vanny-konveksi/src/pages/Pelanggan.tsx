@@ -16,7 +16,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, Plus, Loader2, RefreshCw, Building2, Users, MoreVertical, Crown, Award, UserCircle2, Mail, Phone, MapPin, Trash2, Pencil, UserPlus, Info } from "lucide-react";
+import { Search, Plus, Loader2, RefreshCw, Users, MoreVertical, Crown, Award, UserCircle2, Mail, Phone, MapPin, Trash2, Pencil, UserPlus, Info } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -210,7 +210,7 @@ export default function Pelanggan() {
     total:     customers.length,
     platinum:  customers.filter((c) => c.tier === "Platinum").length,
     gold:      customers.filter((c) => c.tier === "Gold").length,
-    available: profiles.length - customers.length,
+    available: Math.max(profiles.length - customers.length, 0),
   };
 
   const renderTierSelect = () => (
@@ -252,27 +252,29 @@ export default function Pelanggan() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
-            { label: "Total Pelanggan", value: stats.total,     icon: Users,       color: "from-teal-500 to-teal-600" },
-            { label: "Platinum",        value: stats.platinum,  icon: Crown,       color: "from-violet-500 to-violet-600" },
-            { label: "Gold",            value: stats.gold,      icon: Award,       color: "from-amber-500 to-amber-600" },
-            { label: "Belum Terdaftar", value: stats.available, icon: UserPlus,    color: "from-blue-500 to-blue-600" },
+            { label: "Total Pelanggan", short: "Total", value: stats.total,     icon: Users, color: "from-teal-500 to-teal-600" },
+            { label: "Gold",            short: "Gold",  value: stats.gold,      icon: Award, color: "from-amber-500 to-amber-600" },
+            { label: "Platinum",        short: "Platinum", value: stats.platinum, icon: Crown, color: "from-violet-500 to-violet-600" },
           ].map((s, i) => (
             <motion.div
               key={s.label}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              className="rounded-xl border border-gray-200 bg-white p-4 hover:shadow-sm transition-shadow"
+              className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 hover:shadow-sm transition-shadow"
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-500">{s.label}</span>
-                <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center`}>
-                  <s.icon className="h-3.5 w-3.5 text-white" />
+              <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-1">
+                <span className="text-[10px] sm:text-xs font-medium text-gray-500 truncate">
+                  <span className="sm:hidden">{s.short}</span>
+                  <span className="hidden sm:inline">{s.label}</span>
+                </span>
+                <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-br ${s.color} flex items-center justify-center shrink-0`}>
+                  <s.icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
                 </div>
               </div>
-              <div className="text-2xl font-display font-bold text-gray-900">{loading ? "—" : s.value}</div>
+              <div className="text-lg sm:text-2xl font-display font-bold text-gray-900">{loading ? "—" : s.value}</div>
             </motion.div>
           ))}
         </div>

@@ -174,7 +174,7 @@ export default function Pengguna() {
                 className="h-9 pl-9 border-gray-200 text-sm"
               />
             </div>
-            <div className="flex gap-1.5 overflow-x-auto">
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
               {(["all", "admin", "karyawan", "pelanggan"] as const).map((r) => (
                 <button
                   key={r}

@@ -19,17 +19,44 @@ interface MenuItem {
   roles: UserRole[];
 }
 
-const menuItems: MenuItem[] = [
-  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "karyawan"] },
-  { path: "/katalog", label: "Katalog Produk", icon: ShoppingBag, roles: ["admin", "karyawan"] },
-  { path: "/pesanan", label: "Pesanan", icon: ShoppingCart, badge: "12", roles: ["admin", "karyawan"] },
-  { path: "/pegawai", label: "Pegawai", icon: Users, roles: ["admin"] },
-  { path: "/produksi", label: "Produksi", icon: Scissors, roles: ["admin", "karyawan"] },
-  { path: "/keuangan", label: "Keuangan", icon: CircleDollarSign, roles: ["admin"] },
-  { path: "/pelanggan", label: "Pelanggan", icon: UserSquare2, roles: ["admin", "karyawan"] },
-  { path: "/pengguna", label: "Pengguna", icon: ShieldCheck, roles: ["admin"] },
-  { path: "/pengaturan", label: "Pengaturan", icon: Settings, roles: ["admin"] },
+interface MenuSection {
+  label: string;
+  items: MenuItem[];
+}
+
+const menuSections: MenuSection[] = [
+  {
+    label: "Utama",
+    items: [
+      { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "karyawan"] },
+    ],
+  },
+  {
+    label: "Penjualan",
+    items: [
+      { path: "/katalog", label: "Katalog Produk", icon: ShoppingBag, roles: ["admin", "karyawan"] },
+      { path: "/pesanan", label: "Pesanan", icon: ShoppingCart, badge: "12", roles: ["admin", "karyawan"] },
+      { path: "/produksi", label: "Produksi", icon: Scissors, roles: ["admin", "karyawan"] },
+    ],
+  },
+  {
+    label: "Manajemen",
+    items: [
+      { path: "/pegawai", label: "Pegawai", icon: Users, roles: ["admin"] },
+      { path: "/pelanggan", label: "Pelanggan", icon: UserSquare2, roles: ["admin", "karyawan"] },
+      { path: "/pengguna", label: "Pengguna", icon: ShieldCheck, roles: ["admin"] },
+    ],
+  },
+  {
+    label: "Sistem",
+    items: [
+      { path: "/keuangan", label: "Keuangan", icon: CircleDollarSign, roles: ["admin"] },
+      { path: "/pengaturan", label: "Pengaturan", icon: Settings, roles: ["admin"] },
+    ],
+  },
 ];
+
+const allMenuItems: MenuItem[] = menuSections.flatMap((s) => s.items);
 
 const roleLabel: Record<UserRole, { label: string; color: string }> = {
   admin: { label: "Admin", color: "bg-violet-400/20 text-violet-200" },
@@ -43,12 +70,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { profile, logout } = useAuth();
 
-  const visibleMenuItems = menuItems.filter(
-    (item) => !profile || item.roles.includes(profile.role)
-  );
+  const visibleSections = menuSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !profile || item.roles.includes(profile.role)),
+    }))
+    .filter((section) => section.items.length > 0);
 
   const getPageTitle = () => {
-    const item = menuItems.find((item) => item.path === location);
+    const item = allMenuItems.find((item) => item.path === location);
     return item ? item.label : "Dashboard";
   };
 
@@ -71,30 +101,49 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </button>
       </div>
 
-      <div className="flex-1 py-4 overflow-y-auto flex flex-col gap-0.5 px-3">
-        {visibleMenuItems.map((item) => {
-          const isActive = location === item.path;
-          return (
-            <Link key={item.path} href={item.path}>
-              <div className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-150 group ${
-                isActive ? "bg-teal-500/20 text-white" : "text-teal-100/60 hover:bg-white/5 hover:text-teal-100"
-              }`}>
-                {isActive && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-teal-400 rounded-r-full" />
-                )}
-                <item.icon className={`w-[18px] h-[18px] flex-shrink-0 transition-colors ${isActive ? "text-teal-300" : "group-hover:text-teal-300"}`} />
-                <span className={`text-sm font-medium whitespace-nowrap transition-all duration-300 ${isSidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
-                  {item.label}
+      <div className="flex-1 py-3 overflow-y-auto scrollbar-hide flex flex-col gap-3 px-3">
+        {visibleSections.map((section, sIdx) => (
+          <div key={section.label} className="flex flex-col gap-0.5">
+            {!isSidebarCollapsed ? (
+              <div className="px-3 pt-2 pb-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-teal-300/50">
+                  {section.label}
                 </span>
-                {item.badge && !isSidebarCollapsed && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-gray-900 px-1.5">
-                    {item.badge}
-                  </span>
-                )}
               </div>
-            </Link>
-          );
-        })}
+            ) : (
+              sIdx > 0 && <div className="mx-2 my-1 h-px bg-white/10" />
+            )}
+            {section.items.map((item) => {
+              const isActive = location === item.path;
+              return (
+                <Link key={item.path} href={item.path}>
+                  <div
+                    title={isSidebarCollapsed ? item.label : undefined}
+                    className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-150 group ${
+                      isActive ? "bg-teal-500/20 text-white" : "text-teal-100/60 hover:bg-white/5 hover:text-teal-100"
+                    }`}
+                  >
+                    {isActive && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-teal-400 rounded-r-full" />
+                    )}
+                    <item.icon className={`w-[18px] h-[18px] flex-shrink-0 transition-colors ${isActive ? "text-teal-300" : "group-hover:text-teal-300"}`} />
+                    <span className={`text-sm font-medium whitespace-nowrap transition-all duration-300 ${isSidebarCollapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
+                      {item.label}
+                    </span>
+                    {item.badge && !isSidebarCollapsed && (
+                      <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-gray-900 px-1.5">
+                        {item.badge}
+                      </span>
+                    )}
+                    {item.badge && isSidebarCollapsed && (
+                      <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       <div className="p-3 border-t border-white/10">

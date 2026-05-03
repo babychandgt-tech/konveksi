@@ -182,8 +182,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex overflow-hidden">
-      <aside className={`hidden lg:flex flex-col z-20 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? "w-[68px]" : "w-[240px]"}`} style={{ backgroundColor: "#134e4a" }}>
+    <div className="h-screen bg-background text-foreground flex overflow-hidden">
+      <aside className={`hidden lg:flex flex-col z-20 transition-all duration-300 ease-in-out h-screen sticky top-0 shrink-0 ${isSidebarCollapsed ? "w-[68px]" : "w-[240px]"}`} style={{ backgroundColor: "#134e4a" }}>
         <SidebarContent />
       </aside>
 

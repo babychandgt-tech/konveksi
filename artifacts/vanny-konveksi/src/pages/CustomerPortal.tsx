@@ -40,12 +40,16 @@ export default function CustomerPortal() {
   useEffect(() => {
     const fetchOrders = async () => {
       if (!profile) return;
-      const { data } = await supabase
-        .from("orders")
-        .select("*")
-        .or(`customer_id.eq.${profile.id},customer_name.ilike.%${profile.full_name}%`)
-        .order("created_at", { ascending: false });
-      if (data) setOrders(data as Order[]);
+      const [byId, byName] = await Promise.all([
+        supabase.from("orders").select("*").eq("customer_id", profile.id).order("created_at", { ascending: false }),
+        supabase.from("orders").select("*").ilike("customer_name", `%${profile.full_name}%`).order("created_at", { ascending: false }),
+      ]);
+      if (byId.error) console.error("fetchOrders byId:", byId.error);
+      if (byName.error) console.error("fetchOrders byName:", byName.error);
+      const merged = [...(byId.data ?? []), ...(byName.data ?? [])];
+      const deduped = Array.from(new Map(merged.map((o) => [o.id, o])).values())
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setOrders(deduped as Order[]);
       setLoading(false);
     };
     fetchOrders();
@@ -103,12 +107,14 @@ export default function CustomerPortal() {
   const handleCheckoutSuccess = async () => {
     setCartItems([]);
     setSection("pesanan");
-    const { data } = await supabase
-      .from("orders")
-      .select("*")
-      .or(`customer_id.eq.${profile?.id ?? ""},customer_name.ilike.%${profile?.full_name ?? ""}%`)
-      .order("created_at", { ascending: false });
-    if (data) setOrders(data as Order[]);
+    const [byId, byName] = await Promise.all([
+      supabase.from("orders").select("*").eq("customer_id", profile?.id ?? "").order("created_at", { ascending: false }),
+      supabase.from("orders").select("*").ilike("customer_name", `%${profile?.full_name ?? ""}%`).order("created_at", { ascending: false }),
+    ]);
+    const merged = [...(byId.data ?? []), ...(byName.data ?? [])];
+    const deduped = Array.from(new Map(merged.map((o) => [o.id, o])).values())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    if (deduped.length > 0) setOrders(deduped as Order[]);
     toast({
       title: "Pesanan berhasil dibuat!",
       description: "Pesanan kamu sudah masuk. Tim kami akan segera memproses.",

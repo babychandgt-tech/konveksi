@@ -11,6 +11,7 @@ import { Search, Plus, Eye, FileText, CheckCircle2, Clock, PackageOpen, Loader2,
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { printInvoice } from "@/lib/printInvoice";
 
 type OrderStatus = "baru" | "produksi" | "selesai" | "batal";
 
@@ -445,7 +446,11 @@ export default function Pesanan() {
                   <p className="text-[11px] sm:text-xs text-muted-foreground">
                     Deadline: <span className="font-medium text-gray-700">{formatDate(selectedOrder.deadline)}</span>
                   </p>
-                  <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-gray-100 rounded-lg text-xs sm:text-sm h-9 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    onClick={() => printInvoice(selectedOrder)}
+                    className="border-teal-200 text-teal-700 hover:bg-teal-50 hover:border-teal-300 rounded-lg text-xs sm:text-sm h-9 w-full sm:w-auto font-semibold"
+                  >
                     <FileText className="mr-2 h-4 w-4" /> Cetak Invoice
                   </Button>
                 </div>

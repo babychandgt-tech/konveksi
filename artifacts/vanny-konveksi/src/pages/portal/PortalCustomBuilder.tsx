@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight, ChevronLeft, Check, Plus, Minus, Upload,
   ShoppingCart, RotateCcw, Type, ImageIcon, X, Wand2,
-  Palette, Layers, Scissors, Pencil, Move, Hand, Minimize2,
+  Palette, Layers, Scissors, Pencil, Move, Hand, Minimize2, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CartItem, Product, formatRupiah } from "./types";
@@ -12,11 +12,14 @@ import { CartItem, Product, formatRupiah } from "./types";
 type GarmentId   = "kaos" | "polo" | "hoodie" | "jaket";
 type PrintMethod = "tanpa" | "sablon" | "dtf" | "bordir";
 type PreviewSide = "front" | "back";
+type TextShape   = "normal" | "arc-up" | "arc-down" | "circle";
 
 interface TextEl {
   id: string; text: string; color: string;
   size: number; bold: boolean; side: PreviewSide;
   x: number; y: number; // percent 0–100 within canvas
+  font: string;
+  shape: TextShape;
 }
 interface BuilderState {
   garment: GarmentId; color: string; printMethod: PrintMethod;
@@ -66,6 +69,26 @@ const TEXT_PRESETS: { id: string; label: string; side: PreviewSide; x: number; y
   { id: "back-center",  label: "Tengah Belakang",        side: "back",  x: 50, y: 48 },
   { id: "back-top",     label: "Leher Belakang (Kecil)", side: "back",  x: 50, y: 26 },
 ];
+
+const FONTS: { family: string; label: string }[] = [
+  { family: "'Inter', sans-serif",          label: "Inter" },
+  { family: "'Oswald', sans-serif",         label: "Oswald" },
+  { family: "'Bebas Neue', sans-serif",     label: "Bebas Neue" },
+  { family: "'Pacifico', cursive",          label: "Pacifico" },
+  { family: "'Dancing Script', cursive",    label: "Dancing Script" },
+  { family: "'Permanent Marker', cursive",  label: "Marker" },
+  { family: "'Roboto Slab', serif",         label: "Roboto Slab" },
+];
+
+const SHAPES: { id: TextShape; label: string }[] = [
+  { id: "normal",   label: "Normal" },
+  { id: "arc-up",   label: "Lengkung ↑" },
+  { id: "arc-down", label: "Lengkung ↓" },
+  { id: "circle",   label: "Melingkar" },
+];
+
+const DEFAULT_FONT  = FONTS[0].family;
+const DEFAULT_SHAPE: TextShape = "normal";
 
 const DEFAULT_STATE: BuilderState = {
   garment: "kaos", color: "#1e3a5f", printMethod: "sablon",
@@ -334,6 +357,152 @@ const GARMENT_SVG: Record<GarmentId, React.FC<{ fill: string; uid?: string; side
   kaos: KaosSVG, polo: PoloSVG, hoodie: HoodieSVG, jaket: JaketSVG,
 };
 
+/* ─── Shaped Text Renderer ───────────────────────────────── */
+function ShapedText({ t, light }: { t: TextEl; light: boolean }) {
+  const shadow = light ? "0 1px 3px rgba(0,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.65)";
+  const baseStyle = {
+    fontFamily: t.font, fontWeight: t.bold ? 700 : 500,
+    color: t.color, fontSize: t.size,
+    letterSpacing: "0.04em", whiteSpace: "nowrap" as const,
+    textShadow: shadow,
+  };
+
+  if (t.shape === "normal") {
+    return <span style={{ ...baseStyle, display: "block" }}>{t.text}</span>;
+  }
+
+  const uid = `tp-${t.id}`;
+  let svgW: number, svgH: number, pathD: string;
+
+  if (t.shape === "arc-up") {
+    svgW = 280; svgH = 100;
+    pathD = "M 14,88 Q 140,8 266,88";
+  } else if (t.shape === "arc-down") {
+    svgW = 280; svgH = 100;
+    pathD = "M 14,12 Q 140,92 266,12";
+  } else {
+    // circle — top semicircle
+    svgW = 240; svgH = 130;
+    pathD = "M 20,120 a 100,100 0 0,1 200,0";
+  }
+
+  return (
+    <svg width={svgW} height={svgH}
+      style={{ display: "block", overflow: "visible", filter: `drop-shadow(${shadow})` }}>
+      <defs><path id={uid} d={pathD} fill="none" /></defs>
+      <text fontFamily={t.font} fontSize={t.size} fontWeight={t.bold ? 700 : 500}
+        fill={t.color} textAnchor="middle" letterSpacing="1.5">
+        <textPath href={`#${uid}`} startOffset="50%">{t.text}</textPath>
+      </text>
+    </svg>
+  );
+}
+
+/* ─── Static Garment Display (used in modal) ─────────────── */
+function GarmentCanvas({ state, side }: { state: BuilderState; side: PreviewSide }) {
+  const GarmentComp = GARMENT_SVG[state.garment];
+  const visibleTexts = state.texts.filter(t => t.side === side);
+  const showLogo = state.logoDataUrl && state.logoSide === side;
+  const light = isLight(state.color);
+  return (
+    <div className="rounded-2xl overflow-hidden relative" style={{
+      background: "radial-gradient(ellipse at 50% 40%, #e8ecf0 0%, #d4d8de 100%)",
+      padding: "28px 24px 20px",
+    }}>
+      <div style={{
+        position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+        width: "70%", height: "55%",
+        background: "radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.35) 0%, transparent 70%)",
+        pointerEvents: "none",
+      }} />
+      <div className="relative">
+        <GarmentComp fill={state.color} uid={`canvas-${side}-${state.garment}`} side={side} />
+        {visibleTexts.map(t => (
+          <div key={t.id} className="absolute pointer-events-none"
+            style={{ left: `${t.x}%`, top: `${t.y}%`, transform: "translate(-50%,-50%)" }}>
+            <ShapedText t={t} light={light} />
+          </div>
+        ))}
+        {showLogo && (
+          <div className="absolute pointer-events-none"
+            style={{ left: `${state.logoX}%`, top: `${state.logoY}%`, transform: "translate(-50%,-50%)" }}>
+            <img src={state.logoDataUrl!} alt="logo"
+              style={{ width: state.logoSize, height: state.logoSize, objectFit: "contain",
+                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))", display: "block" }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Preview Modal ──────────────────────────────────────── */
+function PreviewModal({ state, onClose }: { state: BuilderState; onClose: () => void }) {
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", fn);
+    return () => document.removeEventListener("keydown", fn);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose} />
+      <motion.div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden"
+        initial={{ opacity: 0, scale: 0.94, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 12 }} transition={{ type: "spring", damping: 24, stiffness: 320 }}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Preview Desain</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Tampilan depan & belakang</p>
+          </div>
+          <button type="button" onClick={onClose}
+            className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {/* Body */}
+        <div className="overflow-auto p-6 flex-1">
+          <div className="grid grid-cols-2 gap-5">
+            {(["front","back"] as PreviewSide[]).map(s => (
+              <div key={s}>
+                <p className="text-xs font-semibold text-gray-500 text-center mb-2 uppercase tracking-wide">
+                  {s === "front" ? "Depan" : "Belakang"}
+                </p>
+                <GarmentCanvas state={state} side={s} />
+              </div>
+            ))}
+          </div>
+          {/* Summary row */}
+          <div className="mt-5 pt-4 border-t border-gray-100 grid grid-cols-3 gap-3 text-xs text-center">
+            <div>
+              <p className="text-gray-400 mb-0.5">Jenis</p>
+              <p className="font-semibold text-gray-700">
+                {state.garment === "kaos" ? "Kaos" : state.garment === "polo" ? "Polo" : state.garment === "hoodie" ? "Hoodie" : "Jaket"}
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-400 mb-0.5">Warna</p>
+              <div className="flex items-center justify-center gap-1.5">
+                <div className="w-3.5 h-3.5 rounded-full border border-gray-300" style={{ background: state.color }} />
+                <span className="font-semibold text-gray-700">{state.color.toUpperCase()}</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-gray-400 mb-0.5">Elemen</p>
+              <p className="font-semibold text-gray-700">
+                {state.texts.length} teks{state.logoDataUrl ? " + logo" : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ─── Preview Panel ──────────────────────────────────────── */
 const LOGO_DRAG_ID = "__logo__";
 
@@ -528,22 +697,17 @@ function ShirtPreview({
                     left: `${t.x}%`, top: `${t.y}%`,
                     transform: "translate(-50%, -50%)",
                     cursor: (onUpdateText && mode === "select") ? (dragging === t.id ? "grabbing" : "grab") : "inherit",
-                    color: t.color, fontSize: t.size,
-                    fontWeight: t.bold ? 700 : 500,
-                    fontFamily: "'Inter', system-ui, sans-serif",
-                    textAlign: "center", whiteSpace: "nowrap", letterSpacing: "0.04em",
-                    textShadow: isLight(state.color) ? "0 1px 2px rgba(0,0,0,0.25)" : "0 1px 3px rgba(0,0,0,0.5)",
-                    padding: "3px 6px", borderRadius: 5,
                     outline: (onUpdateText && mode === "select")
                       ? dragging === t.id ? "1.5px dashed rgba(99,102,241,0.7)" : "1.5px dashed rgba(99,102,241,0.3)"
                       : "none",
+                    borderRadius: 6, padding: 2,
                   }}
                   onMouseDown={e => {
                     if (!onUpdateText || mode !== "select") return;
                     e.preventDefault(); e.stopPropagation();
                     setDragging(t.id);
                   }}>
-                  {t.text}
+                  <ShapedText t={t} light={isLight(state.color)} />
                 </div>
               ))}
 
@@ -683,6 +847,8 @@ function Step2({
   const [newSize,  setNewSize]  = useState(14);
   const [newBold,  setNewBold]  = useState(true);
   const [newPreset, setNewPreset] = useState("chest-center");
+  const [newFont,  setNewFont]  = useState(DEFAULT_FONT);
+  const [newShape, setNewShape] = useState<TextShape>(DEFAULT_SHAPE);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const handleUpdateText = (id: string, patch: Partial<TextEl>) => {
@@ -696,6 +862,7 @@ function Step2({
       id: Date.now().toString(), text: newText.trim(),
       color: newColor, size: newSize, bold: newBold,
       side: preset.side, x: preset.x, y: preset.y,
+      font: newFont, shape: newShape,
     };
     set({ texts: [...state.texts, el] });
     setNewText("");
@@ -783,6 +950,40 @@ function Step2({
                   <Plus className="w-3 h-3" />
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Font picker */}
+          <div>
+            <label className="text-[10px] text-gray-500 mb-1.5 block">Font</label>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+              {FONTS.map(f => (
+                <button key={f.family} type="button" onClick={() => setNewFont(f.family)}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-lg border text-xs transition-all ${
+                    newFont === f.family
+                      ? "border-teal-500 bg-teal-50 text-teal-700 font-semibold"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  }`} style={{ fontFamily: f.family }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Shape picker */}
+          <div>
+            <label className="text-[10px] text-gray-500 mb-1.5 block">Bentuk teks</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {SHAPES.map(s => (
+                <button key={s.id} type="button" onClick={() => setNewShape(s.id)}
+                  className={`py-1.5 rounded-lg border text-[10px] font-medium transition-all ${
+                    newShape === s.id
+                      ? "border-teal-500 bg-teal-50 text-teal-700"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  }`}>
+                  {s.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -899,6 +1100,42 @@ function Step2({
                                   t.side === s ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
                                 }`}>
                                 {s === "front" ? "Depan" : "Belakang"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Font picker (edit) */}
+                        <div>
+                          <label className="text-[10px] text-gray-500 mb-1.5 block">Font</label>
+                          <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+                            {FONTS.map(f => (
+                              <button key={f.family} type="button"
+                                onClick={() => handleUpdateText(t.id, { font: f.family })}
+                                className={`flex-shrink-0 px-2.5 py-1 rounded-lg border text-[10px] transition-all ${
+                                  (t.font ?? DEFAULT_FONT) === f.family
+                                    ? "border-teal-500 bg-teal-50 text-teal-700 font-semibold"
+                                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                                }`} style={{ fontFamily: f.family }}>
+                                {f.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Shape picker (edit) */}
+                        <div>
+                          <label className="text-[10px] text-gray-500 mb-1.5 block">Bentuk teks</label>
+                          <div className="grid grid-cols-4 gap-1">
+                            {SHAPES.map(s => (
+                              <button key={s.id} type="button"
+                                onClick={() => handleUpdateText(t.id, { shape: s.id })}
+                                className={`py-1 rounded-lg border text-[10px] font-medium transition-all ${
+                                  (t.shape ?? "normal") === s.id
+                                    ? "border-teal-500 bg-teal-50 text-teal-700"
+                                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                                }`}>
+                                {s.label}
                               </button>
                             ))}
                           </div>
@@ -1082,6 +1319,7 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
   const [state, setState] = useState<BuilderState>(DEFAULT_STATE);
   const [previewSide, setPreviewSide] = useState<PreviewSide>("front");
   const [added, setAdded] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const set = (partial: Partial<BuilderState>) => setState(prev => ({ ...prev, ...partial }));
 
@@ -1156,10 +1394,16 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
           </div>
           <p className="text-sm text-muted-foreground">Desain bajumu sendiri, kami yang bikin.</p>
         </div>
-        <button type="button" onClick={reset}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-          <RotateCcw className="w-3.5 h-3.5" /> Reset
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setShowPreview(true)}
+            className="flex items-center gap-1.5 text-xs text-teal-700 hover:text-teal-900 px-3 py-1.5 rounded-lg border border-teal-200 bg-teal-50 hover:bg-teal-100 transition-colors font-semibold">
+            <Eye className="w-3.5 h-3.5" /> Preview
+          </button>
+          <button type="button" onClick={reset}
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+            <RotateCcw className="w-3.5 h-3.5" /> Reset
+          </button>
+        </div>
       </div>
 
       {/* Step indicator */}
@@ -1272,6 +1516,13 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
           </div>
         </div>
       </div>
+
+      {/* Full preview modal */}
+      <AnimatePresence>
+        {showPreview && (
+          <PreviewModal state={state} onClose={() => setShowPreview(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

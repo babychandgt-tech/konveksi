@@ -79,129 +79,285 @@ function isLight(hex: string) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 155;
 }
 
-function KaosSVG({ fill }: { fill: string }) {
+function KaosSVG({ fill, uid = "k" }: { fill: string; uid?: string }) {
   const light = isLight(fill);
-  const stroke = light ? "rgba(0,0,0,0.18)" : "rgba(255,255,255,0.12)";
-  const shade  = light ? "rgba(0,0,0,0.08)"  : "rgba(0,0,0,0.25)";
+  const borderColor = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
+  const collarShade = light ? "rgba(0,0,0,0.09)" : "rgba(0,0,0,0.32)";
   return (
-    <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-lg">
-      <ellipse cx="130" cy="290" rx="68" ry="5" fill="rgba(0,0,0,0.08)" />
-      {/* Body + sleeves */}
-      <path d="M84,44 L20,82 L6,112 L40,132 L62,106 L62,260 L198,260 L198,106 L220,132 L254,112 L240,82 L176,44 C166,58 150,66 130,68 C110,66 94,58 84,44 Z"
-        fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-      {/* Sleeve shade */}
-      <path d="M62,106 L40,132 L20,82 L40,92 Z" fill={shade} />
-      <path d="M198,106 L220,132 L240,82 L220,92 Z" fill={shade} />
-      {/* Body side shade */}
-      <path d="M62,106 L62,260 L78,260 L78,106 Z" fill={shade} />
-      <path d="M198,106 L198,260 L182,260 L182,106 Z" fill={shade} />
+    <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <defs>
+        <linearGradient id={`${uid}sg`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="rgba(0,0,0,0.18)" />
+          <stop offset="22%"  stopColor="rgba(0,0,0,0.03)" />
+          <stop offset="78%"  stopColor="rgba(0,0,0,0.03)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
+        </linearGradient>
+        <linearGradient id={`${uid}hg`} x1="0.3" y1="0" x2="0.7" y2="0.4">
+          <stop offset="0%"  stopColor={light ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.07)"} />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+        <filter id={`${uid}sh`} x="-15%" y="-8%" width="130%" height="130%">
+          <feDropShadow dx="0" dy="5" stdDeviation="9" floodColor="rgba(0,0,0,0.22)" />
+        </filter>
+      </defs>
+      {/* Ground shadow */}
+      <ellipse cx="130" cy="290" rx="62" ry="5" fill="rgba(0,0,0,0.07)" />
+      {/* Main shirt body */}
+      <path filter={`url(#${uid}sh)`}
+        d="M88,50 C70,50 46,60 32,78 L8,100 L38,120 C48,108 60,106 62,105
+           C62,105 60,175 59,258 Q130,272 201,258 C200,175 198,105 198,105
+           C200,106 212,108 222,120 L252,100 L228,78
+           C214,60 190,50 172,50 C162,40 148,35 130,34 C112,35 98,40 88,50 Z"
+        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
+      {/* Side shading */}
+      <path d="M88,50 C70,50 46,60 32,78 L8,100 L38,120 C48,108 60,106 62,105
+               C62,105 60,175 59,258 Q130,272 201,258 C200,175 198,105 198,105
+               C200,106 212,108 222,120 L252,100 L228,78
+               C214,60 190,50 172,50 C162,40 148,35 130,34 C112,35 98,40 88,50 Z"
+        fill={`url(#${uid}sg)`} />
+      {/* Highlight */}
+      <path d="M88,50 C70,50 46,60 32,78 L8,100 L38,120 C48,108 60,106 62,105
+               C62,105 60,175 59,258 Q130,272 201,258 C200,175 198,105 198,105
+               C200,106 212,108 222,120 L252,100 L228,78
+               C214,60 190,50 172,50 C162,40 148,35 130,34 C112,35 98,40 88,50 Z"
+        fill={`url(#${uid}hg)`} />
       {/* Collar */}
-      <path d="M84,44 C94,58 110,66 130,68 C150,66 166,58 176,44 C165,32 150,26 130,26 C110,26 95,32 84,44 Z"
-        fill={shade} stroke={stroke} strokeWidth="1" />
+      <path d="M88,50 C98,40 112,35 130,34 C148,35 162,40 172,50
+               C162,60 148,66 130,68 C112,66 98,60 88,50 Z"
+        fill={collarShade} stroke={borderColor} strokeWidth="1" />
+      {/* Sleeve crease lines */}
+      <path d="M32,78 C38,90 40,100 38,120" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="2" strokeLinecap="round" />
+      <path d="M228,78 C222,90 220,100 222,120" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="2" strokeLinecap="round" />
+      {/* Bottom hem stitch */}
+      <path d="M68,257 Q130,270 192,257" fill="none" stroke={borderColor} strokeWidth="0.8" strokeDasharray="4,3" />
     </svg>
   );
 }
 
-function PoloSVG({ fill }: { fill: string }) {
+function PoloSVG({ fill, uid = "p" }: { fill: string; uid?: string }) {
   const light = isLight(fill);
-  const stroke = light ? "rgba(0,0,0,0.18)" : "rgba(255,255,255,0.12)";
-  const shade  = light ? "rgba(0,0,0,0.08)"  : "rgba(0,0,0,0.25)";
-  const collarFill = light ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.1)";
+  const borderColor = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
+  const collarFill  = light ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.22)";
+  const collarStroke = light ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.4)";
   return (
-    <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-lg">
-      <ellipse cx="130" cy="290" rx="68" ry="5" fill="rgba(0,0,0,0.08)" />
-      {/* Body + sleeves */}
-      <path d="M86,50 L22,84 L8,112 L42,130 L64,108 L64,260 L196,260 L196,108 L218,130 L252,112 L238,84 L174,50 L164,72 L130,80 L96,72 Z"
-        fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-      <path d="M64,108 L42,130 L22,84 L42,94 Z" fill={shade} />
-      <path d="M196,108 L218,130 L238,84 L218,94 Z" fill={shade} />
-      <path d="M64,108 L64,260 L80,260 L80,108 Z" fill={shade} />
-      <path d="M196,108 L196,260 L180,260 L180,108 Z" fill={shade} />
-      {/* Polo collar */}
-      <path d="M96,72 L130,80 L164,72 L176,50 L156,40 L130,58 L104,40 L86,50 Z"
-        fill={collarFill} stroke={stroke} strokeWidth="1.2" />
-      {/* Placket center */}
-      <line x1="130" y1="80" x2="130" y2="130" stroke={stroke} strokeWidth="1.5" strokeDasharray="3,2" />
-      {/* Buttons */}
-      {[95, 108, 121].map(y => (
-        <circle key={y} cx="130" cy={y} r="3" fill={stroke} />
+    <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <defs>
+        <linearGradient id={`${uid}sg`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="rgba(0,0,0,0.18)" />
+          <stop offset="22%"  stopColor="rgba(0,0,0,0.03)" />
+          <stop offset="78%"  stopColor="rgba(0,0,0,0.03)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
+        </linearGradient>
+        <linearGradient id={`${uid}hg`} x1="0.3" y1="0" x2="0.7" y2="0.4">
+          <stop offset="0%"  stopColor={light ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.06)"} />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+        <filter id={`${uid}sh`} x="-15%" y="-8%" width="130%" height="130%">
+          <feDropShadow dx="0" dy="5" stdDeviation="9" floodColor="rgba(0,0,0,0.22)" />
+        </filter>
+      </defs>
+      <ellipse cx="130" cy="290" rx="62" ry="5" fill="rgba(0,0,0,0.07)" />
+      {/* Body */}
+      <path filter={`url(#${uid}sh)`}
+        d="M96,65 C76,58 48,62 32,80 L8,102 L38,122 C48,110 62,108 64,107
+           C64,107 62,175 61,258 Q130,272 199,258 C198,175 196,107 196,107
+           C198,108 212,110 222,122 L252,102 L228,80
+           C212,62 184,58 164,65 L152,80 L130,88 L108,80 Z"
+        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M96,65 C76,58 48,62 32,80 L8,102 L38,122 C48,110 62,108 64,107
+               C64,107 62,175 61,258 Q130,272 199,258 C198,175 196,107 196,107
+               C198,108 212,110 222,122 L252,102 L228,80
+               C212,62 184,58 164,65 L152,80 L130,88 L108,80 Z"
+        fill={`url(#${uid}sg)`} />
+      <path d="M96,65 C76,58 48,62 32,80 L8,102 L38,122 C48,110 62,108 64,107
+               C64,107 62,175 61,258 Q130,272 199,258 C198,175 196,107 196,107
+               C198,108 212,110 222,122 L252,102 L228,80
+               C212,62 184,58 164,65 L152,80 L130,88 L108,80 Z"
+        fill={`url(#${uid}hg)`} />
+      {/* Left collar panel */}
+      <path d="M96,65 L108,80 L130,88 L120,115 L98,108 L96,65 Z"
+        fill={collarFill} stroke={collarStroke} strokeWidth="1" strokeLinejoin="round" />
+      {/* Right collar panel */}
+      <path d="M164,65 L152,80 L130,88 L140,115 L162,108 L164,65 Z"
+        fill={collarFill} stroke={collarStroke} strokeWidth="1" strokeLinejoin="round" />
+      {/* Collar fold highlight */}
+      <path d="M108,80 C116,76 122,74 130,72" fill="none" stroke={light ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)"} strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M152,80 C144,76 138,74 130,72" fill="none" stroke={light ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)"} strokeWidth="1.5" strokeLinecap="round" />
+      {/* Placket + buttons */}
+      <line x1="130" y1="88" x2="130" y2="138" stroke={borderColor} strokeWidth="1.2" />
+      {[98, 110, 122].map(y => (
+        <circle key={y} cx="130" cy={y} r="2.8" fill={light ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)"} />
       ))}
+      {/* Hem */}
+      <path d="M70,257 Q130,270 190,257" fill="none" stroke={borderColor} strokeWidth="0.8" strokeDasharray="4,3" />
     </svg>
   );
 }
 
-function HoodieSVG({ fill }: { fill: string }) {
+function HoodieSVG({ fill, uid = "h" }: { fill: string; uid?: string }) {
   const light = isLight(fill);
-  const stroke = light ? "rgba(0,0,0,0.18)" : "rgba(255,255,255,0.12)";
-  const shade  = light ? "rgba(0,0,0,0.08)"  : "rgba(0,0,0,0.25)";
+  const borderColor = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
+  const pocketFill  = light ? "rgba(0,0,0,0.07)" : "rgba(0,0,0,0.25)";
+  const stringColor = light ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)";
   return (
-    <svg viewBox="0 0 260 300" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-lg">
-      <ellipse cx="130" cy="295" rx="68" ry="5" fill="rgba(0,0,0,0.08)" />
+    <svg viewBox="0 0 260 300" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <defs>
+        <linearGradient id={`${uid}sg`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="rgba(0,0,0,0.18)" />
+          <stop offset="25%"  stopColor="rgba(0,0,0,0.02)" />
+          <stop offset="75%"  stopColor="rgba(0,0,0,0.02)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
+        </linearGradient>
+        <linearGradient id={`${uid}hg`} x1="0.3" y1="0" x2="0.7" y2="0.4">
+          <stop offset="0%"  stopColor={light ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.06)"} />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+        <filter id={`${uid}sh`} x="-15%" y="-8%" width="130%" height="130%">
+          <feDropShadow dx="0" dy="5" stdDeviation="9" floodColor="rgba(0,0,0,0.22)" />
+        </filter>
+      </defs>
+      <ellipse cx="130" cy="295" rx="62" ry="5" fill="rgba(0,0,0,0.07)" />
       {/* Hood */}
-      <path d="M80,48 C60,30 30,38 22,70 L22,84 L38,90 C52,58 80,52 100,58 L130,64 L160,58 C180,52 208,58 222,90 L238,84 L238,70 C230,38 200,30 180,48 C168,36 152,28 130,26 C108,28 92,36 80,48 Z"
-        fill={fill} stroke={stroke} strokeWidth="1.5" />
-      {/* Body + sleeves */}
-      <path d="M100,58 L22,84 L6,114 L40,132 L62,108 L62,265 L198,265 L198,108 L220,132 L254,114 L238,84 L160,58 L130,64 Z"
-        fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-      <path d="M62,108 L40,132 L22,84 L40,94 Z" fill={shade} />
-      <path d="M198,108 L220,132 L238,84 L218,94 Z" fill={shade} />
-      <path d="M62,108 L62,265 L78,265 L78,108 Z" fill={shade} />
-      <path d="M198,108 L198,265 L182,265 L182,108 Z" fill={shade} />
-      {/* Hood shadow line */}
-      <path d="M100,58 C108,60 118,62 130,64 C142,62 152,60 160,58" fill="none" stroke={shade} strokeWidth="4" strokeLinecap="round" />
+      <path filter={`url(#${uid}sh)`}
+        d="M92,54 C76,36 42,38 26,68 L26,86 L50,94
+           C58,66 78,56 102,62 L130,68 L158,62
+           C182,56 202,66 210,94 L234,86 L234,68
+           C218,38 184,36 168,54
+           C158,40 146,30 130,28 C114,30 102,40 92,54 Z"
+        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
+      {/* Body */}
+      <path
+        d="M102,62 C82,64 46,76 28,88 L8,116 L40,134
+           C50,120 62,112 64,111 C64,111 62,180 61,263
+           Q130,276 199,263 C198,180 196,111 196,111
+           C198,112 210,120 220,134 L252,116 L232,88
+           C214,76 178,64 158,62 L130,68 Z"
+        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
+      {/* Shading */}
+      <path d="M92,54 C76,36 42,38 26,68 L26,86 L50,94
+               C58,66 78,56 102,62 L130,68 L158,62
+               C182,56 202,66 210,94 L234,86 L234,68
+               C218,38 184,36 168,54
+               C158,40 146,30 130,28 C114,30 102,40 92,54 Z"
+        fill={`url(#${uid}sg)`} />
+      <path d="M102,62 C82,64 46,76 28,88 L8,116 L40,134
+               C50,120 62,112 64,111 C64,111 62,180 61,263
+               Q130,276 199,263 C198,180 196,111 196,111
+               C198,112 210,120 220,134 L252,116 L232,88
+               C214,76 178,64 158,62 L130,68 Z"
+        fill={`url(#${uid}sg)`} />
+      <path d="M102,62 C82,64 46,76 28,88 L8,116 L40,134
+               C50,120 62,112 64,111 C64,111 62,180 61,263
+               Q130,276 199,263 C198,180 196,111 196,111
+               C198,112 210,120 220,134 L252,116 L232,88
+               C214,76 178,64 158,62 L130,68 Z"
+        fill={`url(#${uid}hg)`} />
+      {/* Hood-body seam line */}
+      <path d="M102,62 C112,64 120,66 130,68 C140,66 148,64 158,62"
+        fill="none" stroke={borderColor} strokeWidth="1.5" strokeLinecap="round" />
+      {/* Hood inner curve */}
+      <path d="M50,94 C68,70 94,62 130,68 C166,62 192,70 210,94"
+        fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="3" strokeLinecap="round" />
       {/* Drawstrings */}
-      <line x1="118" y1="64" x2="112" y2="95" stroke={stroke} strokeWidth="1.2" strokeLinecap="round" />
-      <line x1="142" y1="64" x2="148" y2="95" stroke={stroke} strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M118,68 C116,80 113,90 110,104" stroke={stringColor} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      <path d="M142,68 C144,80 147,90 150,104" stroke={stringColor} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      <circle cx="110" cy="104" r="3.5" fill={stringColor} />
+      <circle cx="150" cy="104" r="3.5" fill={stringColor} />
       {/* Kangaroo pocket */}
-      <rect x="90" y="192" width="80" height="48" rx="6" fill={shade} stroke={stroke} strokeWidth="1" />
-      <line x1="130" y1="192" x2="130" y2="240" stroke={stroke} strokeWidth="0.8" />
+      <path d="M84,198 C84,192 88,188 94,188 L166,188 C172,188 176,192 176,198 L176,244 C176,250 172,254 166,254 L94,254 C88,254 84,250 84,244 Z"
+        fill={pocketFill} stroke={borderColor} strokeWidth="1" />
+      <line x1="130" y1="188" x2="130" y2="254" stroke={borderColor} strokeWidth="0.8" />
+      {/* Hem */}
+      <path d="M70,262 Q130,275 190,262" fill="none" stroke={borderColor} strokeWidth="0.8" strokeDasharray="4,3" />
     </svg>
   );
 }
 
-function JaketSVG({ fill }: { fill: string }) {
+function JaketSVG({ fill, uid = "j" }: { fill: string; uid?: string }) {
   const light = isLight(fill);
-  const stroke = light ? "rgba(0,0,0,0.18)" : "rgba(255,255,255,0.12)";
-  const shade  = light ? "rgba(0,0,0,0.08)"  : "rgba(0,0,0,0.25)";
+  const borderColor = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
+  const lapelFill   = light ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.28)";
+  const pocketFill  = light ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.22)";
+  const zipperColor = light ? "rgba(0,0,0,0.2)"  : "rgba(255,255,255,0.2)";
   return (
-    <svg viewBox="0 0 260 300" xmlns="http://www.w3.org/2000/svg" className="w-full h-full drop-shadow-lg">
-      <ellipse cx="130" cy="295" rx="68" ry="5" fill="rgba(0,0,0,0.08)" />
-      {/* Body + sleeves */}
-      <path d="M88,46 L20,86 L6,116 L40,134 L62,108 L62,265 L198,265 L198,108 L220,134 L254,116 L240,86 L172,46 L160,70 L130,78 L100,70 Z"
-        fill={fill} stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
-      <path d="M62,108 L40,134 L20,86 L40,96 Z" fill={shade} />
-      <path d="M198,108 L220,134 L240,86 L220,96 Z" fill={shade} />
-      <path d="M62,108 L62,265 L78,265 L78,108 Z" fill={shade} />
-      <path d="M198,108 L198,265 L182,265 L182,108 Z" fill={shade} />
-      {/* Lapels */}
-      <path d="M88,46 L100,70 L130,78 L115,110 L98,100 L98,46 Z" fill={shade} stroke={stroke} strokeWidth="1" />
-      <path d="M172,46 L160,70 L130,78 L145,110 L162,100 L162,46 Z" fill={shade} stroke={stroke} strokeWidth="1" />
-      {/* Center zipper/line */}
-      <line x1="130" y1="78" x2="130" y2="265" stroke={stroke} strokeWidth="1.5" />
-      {/* Zipper teeth */}
-      {[100,120,140,160,180,200,220,240].map(y => (
-        <line key={y} x1="127" y1={y} x2="133" y2={y} stroke={stroke} strokeWidth="1" />
+    <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <defs>
+        <linearGradient id={`${uid}sg`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stopColor="rgba(0,0,0,0.20)" />
+          <stop offset="25%"  stopColor="rgba(0,0,0,0.03)" />
+          <stop offset="75%"  stopColor="rgba(0,0,0,0.03)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.20)" />
+        </linearGradient>
+        <linearGradient id={`${uid}hg`} x1="0.3" y1="0" x2="0.7" y2="0.4">
+          <stop offset="0%"  stopColor={light ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.06)"} />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+        <filter id={`${uid}sh`} x="-15%" y="-8%" width="130%" height="130%">
+          <feDropShadow dx="0" dy="5" stdDeviation="9" floodColor="rgba(0,0,0,0.22)" />
+        </filter>
+      </defs>
+      <ellipse cx="130" cy="290" rx="62" ry="5" fill="rgba(0,0,0,0.07)" />
+      {/* Body */}
+      <path filter={`url(#${uid}sh)`}
+        d="M90,50 C70,52 44,62 28,82 L6,112 L40,132
+           C50,118 62,110 64,109 C64,109 62,178 61,258
+           Q130,270 199,258 C198,178 196,109 196,109
+           C198,110 210,118 220,132 L254,112 L232,82
+           C216,62 190,52 170,50 L158,72 L130,82 L102,72 Z"
+        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
+      {/* Shading */}
+      <path d="M90,50 C70,52 44,62 28,82 L6,112 L40,132
+               C50,118 62,110 64,109 C64,109 62,178 61,258
+               Q130,270 199,258 C198,178 196,109 196,109
+               C198,110 210,118 220,132 L254,112 L232,82
+               C216,62 190,52 170,50 L158,72 L130,82 L102,72 Z"
+        fill={`url(#${uid}sg)`} />
+      <path d="M90,50 C70,52 44,62 28,82 L6,112 L40,132
+               C50,118 62,110 64,109 C64,109 62,178 61,258
+               Q130,270 199,258 C198,178 196,109 196,109
+               C198,110 210,118 220,132 L254,112 L232,82
+               C216,62 190,52 170,50 L158,72 L130,82 L102,72 Z"
+        fill={`url(#${uid}hg)`} />
+      {/* Left lapel */}
+      <path d="M90,50 L102,72 L130,82 L116,114 L96,106 C92,90 86,68 90,50 Z"
+        fill={lapelFill} stroke={borderColor} strokeWidth="1" strokeLinejoin="round" />
+      {/* Right lapel */}
+      <path d="M170,50 L158,72 L130,82 L144,114 L164,106 C168,90 174,68 170,50 Z"
+        fill={lapelFill} stroke={borderColor} strokeWidth="1" strokeLinejoin="round" />
+      {/* Lapel fold highlight */}
+      <path d="M102,72 C112,70 120,74 130,78" fill="none" stroke={light ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.1)"} strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M158,72 C148,70 140,74 130,78" fill="none" stroke={light ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.1)"} strokeWidth="1.2" strokeLinecap="round" />
+      {/* Center zipper */}
+      <line x1="130" y1="82" x2="130" y2="258" stroke={zipperColor} strokeWidth="1.5" />
+      {[96,110,124,138,152,166,180,194,208,222,236,250].map(y => (
+        <line key={y} x1="127" y1={y} x2="133" y2={y} stroke={zipperColor} strokeWidth="1.2" />
       ))}
       {/* Chest pockets */}
-      <rect x="74" y="125" width="36" height="22" rx="3" fill={shade} stroke={stroke} strokeWidth="0.8" />
-      <rect x="150" y="125" width="36" height="22" rx="3" fill={shade} stroke={stroke} strokeWidth="0.8" />
-      {/* Bottom pockets */}
-      <rect x="70" y="195" width="44" height="30" rx="3" fill={shade} stroke={stroke} strokeWidth="0.8" />
-      <rect x="146" y="195" width="44" height="30" rx="3" fill={shade} stroke={stroke} strokeWidth="0.8" />
+      <rect x="72" y="126" width="42" height="26" rx="4" fill={pocketFill} stroke={borderColor} strokeWidth="0.9" />
+      <rect x="146" y="126" width="42" height="26" rx="4" fill={pocketFill} stroke={borderColor} strokeWidth="0.9" />
+      <line x1="72" y1="134" x2="114" y2="134" stroke={borderColor} strokeWidth="0.7" />
+      <line x1="146" y1="134" x2="188" y2="134" stroke={borderColor} strokeWidth="0.7" />
+      {/* Hip pockets */}
+      <path d="M66,196 C66,190 70,186 76,186 L120,186 C126,186 130,190 130,196 L130,225 C130,231 126,235 120,235 L72,235 C68,235 66,233 66,229 Z"
+        fill={pocketFill} stroke={borderColor} strokeWidth="0.9" />
+      <path d="M130,196 C130,190 134,186 140,186 L184,186 C190,186 194,190 194,196 L194,225 C194,231 190,235 184,235 L136,235 C132,235 130,233 130,229 Z"
+        fill={pocketFill} stroke={borderColor} strokeWidth="0.9" />
+      {/* Hem */}
+      <path d="M70,257 Q130,268 190,257" fill="none" stroke={borderColor} strokeWidth="0.8" strokeDasharray="4,3" />
     </svg>
   );
 }
 
-const GARMENT_SVG: Record<GarmentId, React.FC<{ fill: string }>> = {
+const GARMENT_SVG: Record<GarmentId, React.FC<{ fill: string; uid?: string }>> = {
   kaos: KaosSVG, polo: PoloSVG, hoodie: HoodieSVG, jaket: JaketSVG,
 };
 
 /* ─── Text position CSS ──────────────────────────────────── */
 const TEXT_POS_STYLE: Record<TextPos, React.CSSProperties> = {
-  "chest-left":   { top: "38%", left: "35%", transform: "translate(-50%, -50%)" },
-  "chest-center": { top: "42%", left: "50%", transform: "translate(-50%, -50%)" },
-  "back-center":  { top: "45%", left: "50%", transform: "translate(-50%, -50%)" },
-  "back-top":     { top: "22%", left: "50%", transform: "translate(-50%, -50%)" },
+  "chest-left":   { top: "40%", left: "36%", transform: "translate(-50%, -50%)" },
+  "chest-center": { top: "44%", left: "50%", transform: "translate(-50%, -50%)" },
+  "back-center":  { top: "46%", left: "50%", transform: "translate(-50%, -50%)" },
+  "back-top":     { top: "24%", left: "50%", transform: "translate(-50%, -50%)" },
 };
 
 /* ─── Preview Panel ──────────────────────────────────────── */
@@ -211,15 +367,16 @@ function ShirtPreview({
   const GarmentComp = GARMENT_SVG[state.garment];
   const visibleTexts = state.texts.filter(t => t.side === side);
   const showLogo     = state.logoDataUrl && state.logoSide === side;
+  const colorName    = FABRIC_COLORS.find(c => c.hex === state.color)?.name ?? "Custom";
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-3">
       {/* Side toggle */}
-      <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+      <div className="flex bg-white/60 border border-gray-200 rounded-xl p-1 gap-1 shadow-sm">
         {(["front","back"] as PreviewSide[]).map(s => (
           <button key={s} type="button" onClick={() => onChangeSide(s)}
             className={`px-5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-              side === s ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"
+              side === s ? "bg-white shadow text-gray-900" : "text-gray-400 hover:text-gray-600"
             }`}>
             {s === "front" ? "Depan" : "Belakang"}
           </button>
@@ -227,37 +384,53 @@ function ShirtPreview({
       </div>
 
       {/* Shirt canvas */}
-      <div className="relative w-full max-w-[280px] mx-auto">
-        <GarmentComp fill={state.color} />
+      <div className="relative w-full" style={{ maxWidth: 290 }}>
+        {/* Studio background */}
+        <div className="rounded-2xl overflow-hidden" style={{
+          background: "radial-gradient(ellipse at 50% 40%, #e8ecf0 0%, #d4d8de 100%)",
+          padding: "28px 24px 20px",
+        }}>
+          {/* Inner spotlight */}
+          <div style={{
+            position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
+            width: "70%", height: "55%",
+            background: "radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.35) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }} />
 
-        {/* Text overlays */}
-        {visibleTexts.map(t => (
-          <div key={t.id} className="absolute pointer-events-none select-none"
-            style={{ ...TEXT_POS_STYLE[t.position], color: t.color,
-              fontSize: t.size, fontWeight: t.bold ? 700 : 500,
-              fontFamily: "system-ui, sans-serif", textAlign: "center",
-              whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.3)",
-              letterSpacing: "0.03em" }}>
-            {t.text}
-          </div>
-        ))}
+          <div className="relative">
+            <GarmentComp fill={state.color} uid={`prev-${state.garment}`} />
 
-        {/* Logo overlay */}
-        {showLogo && (
-          <div className="absolute" style={{ top: "40%", left: "50%", transform: "translate(-50%,-50%)" }}>
-            <img src={state.logoDataUrl!} alt="logo"
-              className="w-20 h-20 object-contain drop-shadow-sm" />
-          </div>
-        )}
+            {/* Text overlays */}
+            {visibleTexts.map(t => (
+              <div key={t.id} className="absolute pointer-events-none select-none"
+                style={{ ...TEXT_POS_STYLE[t.position], color: t.color,
+                  fontSize: t.size, fontWeight: t.bold ? 700 : 500,
+                  fontFamily: "'Inter', system-ui, sans-serif", textAlign: "center",
+                  whiteSpace: "nowrap", letterSpacing: "0.04em",
+                  textShadow: isLight(state.color) ? "0 1px 2px rgba(0,0,0,0.25)" : "0 1px 3px rgba(0,0,0,0.5)" }}>
+                {t.text}
+              </div>
+            ))}
 
-        {/* Empty state hint */}
-        {visibleTexts.length === 0 && !showLogo && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="text-[11px] text-white/50 bg-black/20 px-2 py-1 rounded-full">
-              Desain tampil di sini
-            </span>
+            {/* Logo overlay */}
+            {showLogo && (
+              <div className="absolute" style={{ top: "42%", left: "50%", transform: "translate(-50%,-50%)" }}>
+                <img src={state.logoDataUrl!} alt="logo"
+                  className="w-20 h-20 object-contain" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }} />
+              </div>
+            )}
+
+            {/* Empty state hint */}
+            {visibleTexts.length === 0 && !showLogo && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="text-[11px] font-medium text-gray-400 bg-white/60 px-3 py-1 rounded-full shadow-sm border border-white/80">
+                  Desain muncul di sini
+                </span>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Color info */}

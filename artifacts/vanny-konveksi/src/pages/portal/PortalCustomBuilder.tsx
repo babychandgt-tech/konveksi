@@ -129,6 +129,39 @@ function GarmentDefs({ uid, light }: { uid: string; light: boolean }) {
   );
 }
 
+function SleeveSVG({ fill, side, uid = "sl" }: { fill: string; side: "sleeve-l" | "sleeve-r"; uid?: string }) {
+  const light = isLight(fill);
+  const b = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
+  // Sleeve laid flat — portrait: top=shoulder area, bottom=cuff
+  const path = "M 44,28 Q 22,26 22,56 L 22,232 Q 22,268 52,272 L 212,260 Q 238,256 238,226 L 238,58 Q 238,26 212,24 L 64,24 Z";
+  return (
+    <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+      <GarmentDefs uid={uid} light={light} />
+      <ellipse cx="130" cy="288" rx="90" ry="6" fill="rgba(0,0,0,0.07)" />
+      <path filter={`url(#${uid}sh)`} d={path} fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
+      <path d={path} fill={`url(#${uid}sg)`} />
+      <path d={path} fill={`url(#${uid}hg)`} />
+      {/* Shoulder seam (top, dashed) */}
+      <line x1="48" y1="24" x2="210" y2="24" stroke={b} strokeWidth="1.2" strokeDasharray="5,3" opacity="0.7" />
+      {/* Armhole seam (left curved edge, dashed) */}
+      <path d="M 44,28 Q 22,26 22,56 L 22,232 Q 22,268 52,272"
+        fill="none" stroke={b} strokeWidth="1.5" strokeDasharray="5,3" opacity="0.6" />
+      {/* Cuff hem (bottom, solid) */}
+      <line x1="52" y1="272" x2="212" y2="260" stroke={b} strokeWidth="2" strokeLinecap="round" opacity="0.9" />
+      {/* Center fold crease (subtle) */}
+      <line x1="26" y1="148" x2="234" y2="148"
+        stroke={light ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}
+        strokeWidth="1.5" strokeDasharray="6,4" />
+      {/* Sleeve label */}
+      <text x="130" y="160" textAnchor="middle" fontSize="12"
+        fontFamily="Inter, system-ui, sans-serif"
+        fill={light ? "rgba(0,0,0,0.18)" : "rgba(255,255,255,0.2)"}>
+        {side === "sleeve-l" ? "Lengan Kiri" : "Lengan Kanan"}
+      </text>
+    </svg>
+  );
+}
+
 function KaosSVG({ fill, uid = "k", side = "front" }: { fill: string; uid?: string; side?: "front" | "back" }) {
   const light = isLight(fill);
   const b = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
@@ -404,10 +437,19 @@ function ShapedText({ t, light }: { t: TextEl; light: boolean }) {
 }
 
 /* ─── Static Garment Display (used in modal) ─────────────── */
-function GarmentCanvas({ state, side }: { state: BuilderState; side: PreviewSide }) {
+function GarmentCanvas({ state, side }: { state: BuilderState; side: ViewSide }) {
+  const isSleeve    = side === "sleeve-l" || side === "sleeve-r";
+  const garmentSide: PreviewSide = isSleeve ? "front" : side as PreviewSide;
   const GarmentComp = GARMENT_SVG[state.garment];
-  const visibleTexts = state.texts.filter(t => t.side === side);
-  const showLogo = state.logoDataUrl && state.logoSide === side;
+  const visibleTexts = state.texts.filter(t => {
+    if (!isSleeve) return t.side === garmentSide;
+    return t.side === "front" && (side === "sleeve-l" ? t.x <= 40 : t.x >= 60);
+  });
+  const showLogo = !!(state.logoDataUrl && (
+    isSleeve
+      ? state.logoSide === "front" && (side === "sleeve-l" ? state.logoX <= 40 : state.logoX >= 60)
+      : state.logoSide === garmentSide
+  ));
   const light = isLight(state.color);
   return (
     <div className="rounded-2xl overflow-hidden relative" style={{
@@ -421,7 +463,10 @@ function GarmentCanvas({ state, side }: { state: BuilderState; side: PreviewSide
         pointerEvents: "none",
       }} />
       <div className="relative">
-        <GarmentComp fill={state.color} uid={`canvas-${side}-${state.garment}`} side={side} />
+        {isSleeve
+          ? <SleeveSVG fill={state.color} side={side as "sleeve-l" | "sleeve-r"} uid={`canvas-${side}-${state.garment}`} />
+          : <GarmentComp fill={state.color} uid={`canvas-${garmentSide}-${state.garment}`} side={garmentSide} />
+        }
         {visibleTexts.map(t => (
           <div key={t.id} className="absolute pointer-events-none"
             style={{ left: `${t.x}%`, top: `${t.y}%`, transform: "translate(-50%,-50%)" }}>
@@ -461,7 +506,7 @@ function PreviewModal({ state, onClose }: { state: BuilderState; onClose: () => 
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div>
             <h2 className="text-base font-bold text-gray-900">Preview Desain</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Tampilan depan & belakang</p>
+            <p className="text-xs text-gray-400 mt-0.5">Tampilan depan, lengan & belakang</p>
           </div>
           <button type="button" onClick={onClose}
             className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors">
@@ -470,13 +515,18 @@ function PreviewModal({ state, onClose }: { state: BuilderState; onClose: () => 
         </div>
         {/* Body */}
         <div className="overflow-auto p-6 flex-1">
-          <div className="grid grid-cols-2 gap-5">
-            {(["front","back"] as PreviewSide[]).map(s => (
-              <div key={s}>
+          <div className="grid grid-cols-2 gap-4">
+            {([
+              { id: "front",    label: "Depan" },
+              { id: "sleeve-l", label: "Lengan Kiri" },
+              { id: "sleeve-r", label: "Lengan Kanan" },
+              { id: "back",     label: "Belakang" },
+            ] as { id: ViewSide; label: string }[]).map(s => (
+              <div key={s.id}>
                 <p className="text-xs font-semibold text-gray-500 text-center mb-2 uppercase tracking-wide">
-                  {s === "front" ? "Depan" : "Belakang"}
+                  {s.label}
                 </p>
-                <GarmentCanvas state={state} side={s} />
+                <GarmentCanvas state={state} side={s.id} />
               </div>
             ))}
           </div>
@@ -522,8 +572,15 @@ function ShirtPreview({
   const isSleeve     = side === "sleeve-l" || side === "sleeve-r";
   const garmentSide: PreviewSide = isSleeve ? "front" : side as PreviewSide;
   const GarmentComp  = GARMENT_SVG[state.garment];
-  const visibleTexts = state.texts.filter(t => t.side === garmentSide);
-  const showLogo     = state.logoDataUrl && state.logoSide === garmentSide;
+  const visibleTexts = state.texts.filter(t => {
+    if (!isSleeve) return t.side === garmentSide;
+    return t.side === "front" && (side === "sleeve-l" ? t.x <= 40 : t.x >= 60);
+  });
+  const showLogo = !!(state.logoDataUrl && (
+    isSleeve
+      ? state.logoSide === "front" && (side === "sleeve-l" ? state.logoX <= 40 : state.logoX >= 60)
+      : state.logoSide === garmentSide
+  ));
 
   // zoom / pan local state
   const [zoom, setZoom]   = useState(1);
@@ -536,11 +593,9 @@ function ShirtPreview({
   // element dragging
   const [dragging, setDragging] = useState<string | null>(null);
 
-  /* ── sleeve auto-zoom ── */
+  /* ── reset view on side change ── */
   useEffect(() => {
-    if (side === "sleeve-l") { setZoom(2.5); setPanX(47); setPanY(10); setMode("select"); }
-    else if (side === "sleeve-r") { setZoom(2.5); setPanX(-47); setPanY(10); setMode("select"); }
-    else { setZoom(1); setPanX(0); setPanY(0); setMode("select"); }
+    setZoom(1); setPanX(0); setPanY(0); setMode("select");
   }, [side]);
 
   const outerRef   = useRef<HTMLDivElement>(null); // clip container (unchanged size)
@@ -683,7 +738,7 @@ function ShirtPreview({
           style={{ maxWidth: 360 }}>
           <div className="flex items-center gap-2 text-xs text-teal-700 font-semibold">
             <span>{side === "sleeve-l" ? "👕 Lengan Kiri" : "Lengan Kanan 👕"}</span>
-            <span className="text-teal-400 font-normal">· zoom 2.5×</span>
+            <span className="text-teal-400 font-normal">· tampilan pola lengan</span>
           </div>
           <span className="text-[10px] text-teal-500">Drag elemen untuk atur posisi</span>
         </motion.div>
@@ -723,7 +778,10 @@ function ShirtPreview({
                 position: "relative",
               }}
             >
-              <GarmentComp fill={state.color} uid={`prev-${state.garment}-${garmentSide}`} side={garmentSide} />
+              {isSleeve
+                ? <SleeveSVG fill={state.color} side={side as "sleeve-l" | "sleeve-r"} uid={`prev-${state.garment}-${side}`} />
+                : <GarmentComp fill={state.color} uid={`prev-${state.garment}-${garmentSide}`} side={garmentSide} />
+              }
 
               {/* Text overlays */}
               {visibleTexts.map(t => (

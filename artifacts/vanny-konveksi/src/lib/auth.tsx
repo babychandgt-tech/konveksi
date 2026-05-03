@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role: UserRole,
     companyName?: string
   ): Promise<{ error: string | null }> => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -95,6 +95,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     if (error) return { error: error.message };
+    if (data.user) {
+      const { error: profError } = await supabase
+        .from("profiles")
+        .upsert({
+          id: data.user.id,
+          full_name: fullName,
+          email,
+          role,
+        } as never);
+      if (profError) {
+        console.warn("Profil tidak tersimpan otomatis:", profError.message);
+      }
+    }
     return { error: null };
   };
 

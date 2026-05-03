@@ -160,6 +160,15 @@ export default function Pegawai() {
 
     const newUserId = signUpData.user.id;
 
+    await supabaseAdminCreate
+      .from("profiles")
+      .upsert({
+        id: newUserId,
+        full_name: fullName,
+        email,
+        role: "karyawan",
+      } as never);
+
     const payload = {
       id: newUserId,
       name: fullName,

@@ -570,9 +570,9 @@ function PreviewModal({ state, onClose }: { state: BuilderState; onClose: () => 
           <div className="grid grid-cols-2 gap-4">
             {([
               { id: "front",    label: "Depan" },
+              { id: "back",     label: "Belakang" },
               { id: "sleeve-l", label: "Lengan Kiri" },
               { id: "sleeve-r", label: "Lengan Kanan" },
-              { id: "back",     label: "Belakang" },
             ] as { id: ViewSide; label: string }[]).map(s => (
               <div key={s.id}>
                 <p className="text-xs font-semibold text-gray-500 text-center mb-2 uppercase tracking-wide">

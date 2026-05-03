@@ -65,6 +65,8 @@ export default function Pesanan() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [estimasiInput, setEstimasiInput] = useState("");
+  const [savingEstimasi, setSavingEstimasi] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -149,7 +151,26 @@ export default function Pesanan() {
       return;
     }
     toast({ title: "Status diperbarui", description: `${selectedOrder.id} → ${STATUS_CONFIG[newStatus].label}` });
-    setSelectedOrder({ ...selectedOrder, status: newStatus });
+    const updated = { ...selectedOrder, status: newStatus };
+    setSelectedOrder(updated);
+    if (newStatus === "produksi") setEstimasiInput(selectedOrder.deadline ?? "");
+    fetchOrders();
+  };
+
+  const handleSaveEstimasi = async () => {
+    if (!selectedOrder || !estimasiInput) return;
+    setSavingEstimasi(true);
+    const { error } = await supabase
+      .from("orders")
+      .update({ deadline: estimasiInput })
+      .eq("id", selectedOrder.id);
+    setSavingEstimasi(false);
+    if (error) {
+      toast({ title: "Gagal simpan estimasi", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Estimasi disimpan", description: `Pelanggan akan melihat estimasi ini di portalnya.` });
+    setSelectedOrder({ ...selectedOrder, deadline: estimasiInput });
     fetchOrders();
   };
 
@@ -406,6 +427,32 @@ export default function Pesanan() {
                           ))}
                         </div>
                       </div>
+
+                      {/* Form Estimasi — hanya muncul saat status produksi */}
+                      {selectedOrder.status === "produksi" && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 sm:p-4 space-y-2">
+                          <h4 className="text-[10px] sm:text-xs font-semibold text-amber-700 uppercase tracking-wide">
+                            Estimasi Selesai Pengerjaan
+                          </h4>
+                          <p className="text-[11px] text-amber-600/80">Tanggal ini akan tampil di portal pelanggan.</p>
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              type="date"
+                              value={estimasiInput}
+                              onChange={(e) => setEstimasiInput(e.target.value)}
+                              className="h-9 border-amber-200 focus-visible:ring-amber-400 text-sm bg-white flex-1"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={handleSaveEstimasi}
+                              disabled={!estimasiInput || savingEstimasi}
+                              className="h-9 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-4 shrink-0"
+                            >
+                              {savingEstimasi ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Simpan"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Right column: Timeline */}

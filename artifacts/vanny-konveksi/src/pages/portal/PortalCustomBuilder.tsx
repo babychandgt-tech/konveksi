@@ -12,6 +12,7 @@ import { CartItem, Product, formatRupiah } from "./types";
 type GarmentId   = "kaos" | "polo" | "hoodie" | "jaket";
 type PrintMethod = "tanpa" | "sablon" | "dtf" | "bordir";
 type PreviewSide = "front" | "back";
+type ViewSide    = "front" | "sleeve-l" | "sleeve-r" | "back";
 type TextShape   = "normal" | "arc-up" | "arc-down" | "circle";
 
 interface TextEl {
@@ -513,14 +514,16 @@ const LOGO_DRAG_ID = "__logo__";
 function ShirtPreview({
   state, side, onChangeSide, onUpdateText, onUpdateLogo,
 }: {
-  state: BuilderState; side: PreviewSide;
-  onChangeSide: (s: PreviewSide) => void;
+  state: BuilderState; side: ViewSide;
+  onChangeSide: (s: ViewSide) => void;
   onUpdateText?: (id: string, patch: Partial<TextEl>) => void;
   onUpdateLogo?: (patch: { x: number; y: number }) => void;
 }) {
+  const isSleeve     = side === "sleeve-l" || side === "sleeve-r";
+  const garmentSide: PreviewSide = isSleeve ? "front" : side as PreviewSide;
   const GarmentComp  = GARMENT_SVG[state.garment];
-  const visibleTexts = state.texts.filter(t => t.side === side);
-  const showLogo     = state.logoDataUrl && state.logoSide === side;
+  const visibleTexts = state.texts.filter(t => t.side === garmentSide);
+  const showLogo     = state.logoDataUrl && state.logoSide === garmentSide;
 
   // zoom / pan local state
   const [zoom, setZoom]   = useState(1);
@@ -532,6 +535,13 @@ function ShirtPreview({
 
   // element dragging
   const [dragging, setDragging] = useState<string | null>(null);
+
+  /* ── sleeve auto-zoom ── */
+  useEffect(() => {
+    if (side === "sleeve-l") { setZoom(2.5); setPanX(47); setPanY(10); setMode("select"); }
+    else if (side === "sleeve-r") { setZoom(2.5); setPanX(-47); setPanY(10); setMode("select"); }
+    else { setZoom(1); setPanX(0); setPanY(0); setMode("select"); }
+  }, [side]);
 
   const outerRef   = useRef<HTMLDivElement>(null); // clip container (unchanged size)
   const contentRef = useRef<HTMLDivElement>(null); // scaled+translated inner
@@ -615,12 +625,19 @@ function ShirtPreview({
       <div className="flex items-center justify-between w-full" style={{ maxWidth: 360 }}>
         {/* Side toggle */}
         <div className="flex bg-white/60 border border-gray-200 rounded-xl p-1 gap-1 shadow-sm">
-          {(["front","back"] as PreviewSide[]).map(s => (
-            <button key={s} type="button" onClick={() => onChangeSide(s)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                side === s ? "bg-white shadow text-gray-900" : "text-gray-400 hover:text-gray-600"
+          {([
+            { id: "front",    label: "Depan" },
+            { id: "sleeve-l", label: "← Lengan" },
+            { id: "sleeve-r", label: "Lengan →" },
+            { id: "back",     label: "Belakang" },
+          ] as { id: ViewSide; label: string }[]).map(s => (
+            <button key={s.id} type="button" onClick={() => onChangeSide(s.id)}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                side === s.id
+                  ? "bg-white shadow text-gray-900"
+                  : "text-gray-400 hover:text-gray-600"
               }`}>
-              {s === "front" ? "Depan" : "Belakang"}
+              {s.label}
             </button>
           ))}
         </div>
@@ -658,6 +675,20 @@ function ShirtPreview({
         </div>
       </div>
 
+      {/* Sleeve indicator banner */}
+      {isSleeve && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-between w-full px-3 py-2 rounded-xl bg-teal-50 border border-teal-100"
+          style={{ maxWidth: 360 }}>
+          <div className="flex items-center gap-2 text-xs text-teal-700 font-semibold">
+            <span>{side === "sleeve-l" ? "👕 Lengan Kiri" : "Lengan Kanan 👕"}</span>
+            <span className="text-teal-400 font-normal">· zoom 2.5×</span>
+          </div>
+          <span className="text-[10px] text-teal-500">Drag elemen untuk atur posisi</span>
+        </motion.div>
+      )}
+
       {/* Canvas */}
       <div className="relative w-full" style={{ maxWidth: 360 }}>
         <div className="rounded-2xl overflow-hidden" style={{
@@ -692,7 +723,7 @@ function ShirtPreview({
                 position: "relative",
               }}
             >
-              <GarmentComp fill={state.color} uid={`prev-${state.garment}-${side}`} side={side} />
+              <GarmentComp fill={state.color} uid={`prev-${state.garment}-${garmentSide}`} side={garmentSide} />
 
               {/* Text overlays */}
               {visibleTexts.map(t => (
@@ -844,7 +875,7 @@ function Step1({ state, set }: { state: BuilderState; set: (s: Partial<BuilderSt
 /* ─── Step 2: Desain ─────────────────────────────────────── */
 function Step2({
   state, set, previewSide, setPreviewSide,
-}: { state: BuilderState; set: (s: Partial<BuilderState>) => void; previewSide: PreviewSide; setPreviewSide: (s: PreviewSide) => void }) {
+}: { state: BuilderState; set: (s: Partial<BuilderState>) => void; previewSide: ViewSide; setPreviewSide: (s: ViewSide) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [newText,  setNewText]  = useState("");
   const [newColor, setNewColor] = useState("#ffffff");
@@ -1329,7 +1360,7 @@ interface Props { onAddToCart: (item: CartItem) => void; setSection: (s: any) =>
 export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) {
   const [step, setStep] = useState(1);
   const [state, setState] = useState<BuilderState>(DEFAULT_STATE);
-  const [previewSide, setPreviewSide] = useState<PreviewSide>("front");
+  const [previewSide, setPreviewSide] = useState<ViewSide>("front");
   const [added, setAdded] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 

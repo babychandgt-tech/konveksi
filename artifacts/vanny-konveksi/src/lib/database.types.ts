@@ -52,7 +52,7 @@ export interface Database {
       orders: {
         Row: {
           id: string;
-          customer_id: string;
+          customer_id: string | null;
           customer_name: string;
           product: string;
           qty: number;

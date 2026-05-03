@@ -131,7 +131,7 @@ export default function PortalCheckout({ cartItems, profile, onSuccess, setSecti
     for (const item of cartItems) {
       const { error } = await supabase.from("orders").insert({
         id: `${orderId}-${item.id.slice(-6)}`,
-        customer_id: profile?.id ?? "",
+        customer_id: profile?.id ?? null,
         customer_name: form.name,
         product: `${item.product.name}${item.selectedSize ? ` (${item.selectedSize})` : ""}`,
         qty: item.qty,

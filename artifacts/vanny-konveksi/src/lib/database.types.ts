@@ -58,10 +58,10 @@ export interface Database {
           qty: number;
           total: number;
           status: "baru" | "produksi" | "selesai" | "batal";
-          deadline: string;
+          deadline: string | null;
           created_at: string;
         };
-        Insert: Omit<Database["public"]["Tables"]["orders"]["Row"], "created_at"> & { created_at?: string };
+        Insert: Omit<Database["public"]["Tables"]["orders"]["Row"], "created_at"> & { created_at?: string; deadline?: string | null };
         Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;
       };
       production_tasks: {

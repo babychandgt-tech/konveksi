@@ -60,8 +60,8 @@ export default function PortalPesanan({ orders, loading }: Props) {
                     <p className="font-semibold text-gray-900">{order.qty} pcs</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground mb-0.5">Deadline</p>
-                    <p className="font-semibold text-gray-900">{order.deadline ? formatDate(order.deadline) : "-"}</p>
+                    <p className="text-muted-foreground mb-0.5">Estimasi Selesai</p>
+                    <p className="font-semibold text-gray-900">{order.deadline ? formatDate(order.deadline) : "Menunggu admin"}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground mb-0.5">Total</p>

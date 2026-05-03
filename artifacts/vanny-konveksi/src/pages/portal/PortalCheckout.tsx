@@ -128,10 +128,6 @@ export default function PortalCheckout({ cartItems, profile, onSuccess, setSecti
   };
 
   const createOrders = async (orderId: string) => {
-    const deadline = new Date();
-    deadline.setDate(deadline.getDate() + 14);
-    const deadlineStr = deadline.toISOString().split("T")[0];
-
     for (const item of cartItems) {
       const { error } = await supabase.from("orders").insert({
         id: `${orderId}-${item.id.slice(-6)}`,
@@ -141,7 +137,7 @@ export default function PortalCheckout({ cartItems, profile, onSuccess, setSecti
         qty: item.qty,
         total: item.unitPrice * item.qty,
         status: "baru",
-        deadline: deadlineStr,
+        deadline: null,
       });
       if (error) {
         console.error("Gagal simpan pesanan:", error);

@@ -156,7 +156,7 @@ export default function Pesanan() {
   const timelineSteps = (order: Order) => [
     { icon: CheckCircle2, label: "Pesanan Dibuat",  time: formatDate(order.created_at), done: true },
     { icon: PackageOpen,  label: "Masuk Produksi",  time: "—", done: order.status === "produksi" || order.status === "selesai", active: order.status === "produksi" },
-    { icon: CheckCircle2, label: "Selesai",         time: order.status === "selesai" ? formatDate(order.deadline) : `Est. ${formatDate(order.deadline)}`, done: order.status === "selesai", dim: order.status !== "selesai" },
+    { icon: CheckCircle2, label: "Selesai",         time: order.deadline ? (order.status === "selesai" ? formatDate(order.deadline) : `Est. ${formatDate(order.deadline)}`) : "Belum ditentukan", done: order.status === "selesai", dim: order.status !== "selesai" },
   ];
 
   return (
@@ -203,7 +203,7 @@ export default function Pesanan() {
                       <Input type="number" placeholder="10000000" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} className="h-9 border-gray-200 focus-visible:ring-teal-500 text-sm" required />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-gray-700">Deadline</Label>
+                      <Label className="text-xs font-medium text-gray-700">Estimasi Selesai</Label>
                       <Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} className="h-9 border-gray-200 focus-visible:ring-teal-500 text-sm" />
                     </div>
                     <div className="space-y-1.5">
@@ -288,7 +288,7 @@ export default function Pesanan() {
                     <TableHead className="text-xs font-medium text-muted-foreground">Produk</TableHead>
                     <TableHead className="text-xs font-medium text-muted-foreground">Total</TableHead>
                     <TableHead className="text-xs font-medium text-muted-foreground">Status</TableHead>
-                    <TableHead className="text-xs font-medium text-muted-foreground">Deadline</TableHead>
+                    <TableHead className="text-xs font-medium text-muted-foreground">Estimasi Selesai</TableHead>
                     <TableHead className="text-xs font-medium text-muted-foreground text-right px-5">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -309,7 +309,7 @@ export default function Pesanan() {
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-teal-700">{formatRp(order.total)}</TableCell>
                       <TableCell><StatusBadge status={order.status} /></TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDate(order.deadline)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{order.deadline ? formatDate(order.deadline) : "—"}</TableCell>
                       <TableCell className="text-right px-5">
                         <Button
                           variant="ghost"
@@ -444,7 +444,7 @@ export default function Pesanan() {
                 {/* Footer */}
                 <div className="p-3 sm:p-4 border-t border-gray-100 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 bg-gray-50/50 shrink-0">
                   <p className="text-[11px] sm:text-xs text-muted-foreground">
-                    Deadline: <span className="font-medium text-gray-700">{formatDate(selectedOrder.deadline)}</span>
+                    Estimasi Selesai: <span className="font-medium text-gray-700">{selectedOrder.deadline ? formatDate(selectedOrder.deadline) : "Belum ditentukan"}</span>
                   </p>
                   <Button
                     variant="outline"

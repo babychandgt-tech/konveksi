@@ -52,6 +52,7 @@ const menuSections: MenuSection[] = [
     items: [
       { path: "/keuangan", label: "Keuangan", icon: CircleDollarSign, roles: ["admin"] },
       { path: "/pengaturan", label: "Pengaturan", icon: Settings, roles: ["admin"] },
+      { path: "/pengaturan", label: "Custom Builder", icon: Settings, roles: ["admin"] },
     ],
   },
 ];

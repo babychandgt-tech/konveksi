@@ -3,20 +3,20 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight, ChevronLeft, Check, Plus, Minus, Upload,
   ShoppingCart, RotateCcw, Type, ImageIcon, X, Wand2,
-  Palette, Layers, Scissors, Sparkles,
+  Palette, Layers, Scissors, Pencil, Move,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CartItem, Product, formatRupiah } from "./types";
 
 /* ─── Types ──────────────────────────────────────────────── */
-type GarmentId    = "kaos" | "polo" | "hoodie" | "jaket";
-type PrintMethod  = "tanpa" | "sablon" | "dtf" | "bordir";
-type PreviewSide  = "front" | "back";
-type TextPos      = "chest-left" | "chest-center" | "back-center" | "back-top";
+type GarmentId   = "kaos" | "polo" | "hoodie" | "jaket";
+type PrintMethod = "tanpa" | "sablon" | "dtf" | "bordir";
+type PreviewSide = "front" | "back";
 
 interface TextEl {
   id: string; text: string; color: string;
-  size: number; bold: boolean; side: PreviewSide; position: TextPos;
+  size: number; bold: boolean; side: PreviewSide;
+  x: number; y: number; // percent 0–100 within canvas
 }
 interface BuilderState {
   garment: GarmentId; color: string; printMethod: PrintMethod;
@@ -59,11 +59,11 @@ const PRINT_METHODS: { id: PrintMethod; label: string; desc: string; surcharge: 
 ];
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
-const TEXT_POSITIONS: { id: TextPos; label: string; side: PreviewSide }[] = [
-  { id: "chest-left",   label: "Dada Kiri (Depan)",    side: "front" },
-  { id: "chest-center", label: "Tengah Depan",          side: "front" },
-  { id: "back-center",  label: "Tengah Belakang",       side: "back"  },
-  { id: "back-top",     label: "Leher Belakang (Kecil)",side: "back"  },
+const TEXT_PRESETS: { id: string; label: string; side: PreviewSide; x: number; y: number }[] = [
+  { id: "chest-left",   label: "Dada Kiri (Depan)",     side: "front", x: 38, y: 42 },
+  { id: "chest-center", label: "Tengah Depan",           side: "front", x: 50, y: 46 },
+  { id: "back-center",  label: "Tengah Belakang",        side: "back",  x: 50, y: 48 },
+  { id: "back-top",     label: "Leher Belakang (Kecil)", side: "back",  x: 50, y: 26 },
 ];
 
 const DEFAULT_STATE: BuilderState = {
@@ -352,22 +352,36 @@ const GARMENT_SVG: Record<GarmentId, React.FC<{ fill: string; uid?: string }>> =
   kaos: KaosSVG, polo: PoloSVG, hoodie: HoodieSVG, jaket: JaketSVG,
 };
 
-/* ─── Text position CSS ──────────────────────────────────── */
-const TEXT_POS_STYLE: Record<TextPos, React.CSSProperties> = {
-  "chest-left":   { top: "40%", left: "36%", transform: "translate(-50%, -50%)" },
-  "chest-center": { top: "44%", left: "50%", transform: "translate(-50%, -50%)" },
-  "back-center":  { top: "46%", left: "50%", transform: "translate(-50%, -50%)" },
-  "back-top":     { top: "24%", left: "50%", transform: "translate(-50%, -50%)" },
-};
-
 /* ─── Preview Panel ──────────────────────────────────────── */
 function ShirtPreview({
-  state, side, onChangeSide,
-}: { state: BuilderState; side: PreviewSide; onChangeSide: (s: PreviewSide) => void }) {
-  const GarmentComp = GARMENT_SVG[state.garment];
+  state, side, onChangeSide, onUpdateText,
+}: {
+  state: BuilderState; side: PreviewSide;
+  onChangeSide: (s: PreviewSide) => void;
+  onUpdateText?: (id: string, patch: Partial<TextEl>) => void;
+}) {
+  const GarmentComp  = GARMENT_SVG[state.garment];
   const visibleTexts = state.texts.filter(t => t.side === side);
   const showLogo     = state.logoDataUrl && state.logoSide === side;
-  const colorName    = FABRIC_COLORS.find(c => c.hex === state.color)?.name ?? "Custom";
+  const canvasRef    = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
+
+  const getPct = (e: React.MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(5, Math.min(95, ((e.clientY - rect.top)  / rect.height) * 100)),
+    };
+  };
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dragging || !onUpdateText) return;
+    const pct = getPct(e);
+    if (pct) onUpdateText(dragging, pct);
+  }, [dragging, onUpdateText]);
+
+  const stopDrag = () => setDragging(null);
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -383,14 +397,13 @@ function ShirtPreview({
         ))}
       </div>
 
-      {/* Shirt canvas */}
-      <div className="relative w-full" style={{ maxWidth: 290 }}>
-        {/* Studio background */}
+      {/* Canvas */}
+      <div className="relative w-full" style={{ maxWidth: 360 }}>
         <div className="rounded-2xl overflow-hidden" style={{
           background: "radial-gradient(ellipse at 50% 40%, #e8ecf0 0%, #d4d8de 100%)",
-          padding: "28px 24px 20px",
+          padding: "34px 30px 26px",
         }}>
-          {/* Inner spotlight */}
+          {/* Spotlight */}
           <div style={{
             position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)",
             width: "70%", height: "55%",
@@ -398,40 +411,79 @@ function ShirtPreview({
             pointerEvents: "none",
           }} />
 
-          <div className="relative">
+          {/* Draggable canvas area */}
+          <div
+            ref={canvasRef}
+            className="relative"
+            style={{ cursor: dragging ? "grabbing" : "default", userSelect: "none" }}
+            onMouseMove={handleMouseMove}
+            onMouseUp={stopDrag}
+            onMouseLeave={stopDrag}
+          >
             <GarmentComp fill={state.color} uid={`prev-${state.garment}`} />
 
-            {/* Text overlays */}
+            {/* Text overlays — draggable */}
             {visibleTexts.map(t => (
-              <div key={t.id} className="absolute pointer-events-none select-none"
-                style={{ ...TEXT_POS_STYLE[t.position], color: t.color,
-                  fontSize: t.size, fontWeight: t.bold ? 700 : 500,
-                  fontFamily: "'Inter', system-ui, sans-serif", textAlign: "center",
-                  whiteSpace: "nowrap", letterSpacing: "0.04em",
-                  textShadow: isLight(state.color) ? "0 1px 2px rgba(0,0,0,0.25)" : "0 1px 3px rgba(0,0,0,0.5)" }}>
+              <div
+                key={t.id}
+                className="absolute"
+                style={{
+                  left: `${t.x}%`, top: `${t.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  cursor: onUpdateText ? (dragging === t.id ? "grabbing" : "grab") : "default",
+                  color: t.color,
+                  fontSize: t.size,
+                  fontWeight: t.bold ? 700 : 500,
+                  fontFamily: "'Inter', system-ui, sans-serif",
+                  textAlign: "center",
+                  whiteSpace: "nowrap",
+                  letterSpacing: "0.04em",
+                  textShadow: isLight(state.color) ? "0 1px 2px rgba(0,0,0,0.25)" : "0 1px 3px rgba(0,0,0,0.5)",
+                  padding: "3px 6px",
+                  borderRadius: 5,
+                  outline: onUpdateText
+                    ? dragging === t.id
+                      ? "1.5px dashed rgba(99,102,241,0.7)"
+                      : "1.5px dashed rgba(99,102,241,0.3)"
+                    : "none",
+                }}
+                onMouseDown={e => {
+                  if (!onUpdateText) return;
+                  e.preventDefault();
+                  setDragging(t.id);
+                }}
+              >
                 {t.text}
               </div>
             ))}
 
-            {/* Logo overlay */}
+            {/* Logo */}
             {showLogo && (
-              <div className="absolute" style={{ top: "42%", left: "50%", transform: "translate(-50%,-50%)" }}>
+              <div className="absolute pointer-events-none" style={{ top: "42%", left: "50%", transform: "translate(-50%,-50%)" }}>
                 <img src={state.logoDataUrl!} alt="logo"
                   className="w-20 h-20 object-contain" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }} />
               </div>
             )}
 
-            {/* Empty state hint */}
+            {/* Empty state */}
             {visibleTexts.length === 0 && !showLogo && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="text-[11px] font-medium text-gray-400 bg-white/60 px-3 py-1 rounded-full shadow-sm border border-white/80">
-                  Desain muncul di sini
+                  {onUpdateText ? "Tambah teks, lalu drag di sini" : "Desain muncul di sini"}
                 </span>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* Drag hint */}
+      {onUpdateText && visibleTexts.length > 0 && (
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+          <Move className="w-3 h-3" />
+          <span>Drag teks di canvas untuk menggeser posisi</span>
+        </div>
+      )}
 
       {/* Color info */}
       <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -505,28 +557,34 @@ function Step2({
   state, set, previewSide, setPreviewSide,
 }: { state: BuilderState; set: (s: Partial<BuilderState>) => void; previewSide: PreviewSide; setPreviewSide: (s: PreviewSide) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [newText, setNewText] = useState("");
+  const [newText,  setNewText]  = useState("");
   const [newColor, setNewColor] = useState("#ffffff");
-  const [newSize, setNewSize] = useState(14);
-  const [newBold, setNewBold] = useState(true);
-  const [newPos, setNewPos] = useState<TextPos>("chest-center");
+  const [newSize,  setNewSize]  = useState(14);
+  const [newBold,  setNewBold]  = useState(true);
+  const [newPreset, setNewPreset] = useState("chest-center");
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleUpdateText = (id: string, patch: Partial<TextEl>) => {
+    set({ texts: state.texts.map(t => t.id === id ? { ...t, ...patch } : t) });
+  };
 
   const handleAddText = () => {
     if (!newText.trim()) return;
-    const pos = TEXT_POSITIONS.find(p => p.id === newPos)!;
+    const preset = TEXT_PRESETS.find(p => p.id === newPreset) ?? TEXT_PRESETS[1];
     const el: TextEl = {
       id: Date.now().toString(), text: newText.trim(),
       color: newColor, size: newSize, bold: newBold,
-      side: pos.side, position: newPos,
+      side: preset.side, x: preset.x, y: preset.y,
     };
     set({ texts: [...state.texts, el] });
     setNewText("");
-    // Switch preview side to match where text was added
-    setPreviewSide(pos.side);
+    setPreviewSide(preset.side);
+    setEditingId(el.id);
   };
 
   const handleRemoveText = (id: string) => {
     set({ texts: state.texts.filter(t => t.id !== id) });
+    if (editingId === id) setEditingId(null);
   };
 
   const handleUploadLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -576,16 +634,17 @@ function Step2({
           <input
             type="text" value={newText}
             onChange={e => setNewText(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleAddText(); }}
             placeholder="Contoh: TEAM VANNY 2025"
             className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-teal-400 bg-white"
           />
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-[10px] text-gray-500 mb-1 block">Posisi</label>
-              <select value={newPos} onChange={e => setNewPos(e.target.value as TextPos)}
+              <label className="text-[10px] text-gray-500 mb-1 block">Posisi awal</label>
+              <select value={newPreset} onChange={e => setNewPreset(e.target.value)}
                 className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-300 bg-white">
-                {TEXT_POSITIONS.map(p => (
+                {TEXT_PRESETS.map(p => (
                   <option key={p.id} value={p.id}>{p.label}</option>
                 ))}
               </select>
@@ -595,18 +654,20 @@ function Step2({
               <div className="flex items-center gap-1.5">
                 <button type="button" onClick={() => setNewSize(s => Math.max(8, s - 2))}
                   className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100">
-                  <Minus className="w-3 h-3" /></button>
+                  <Minus className="w-3 h-3" />
+                </button>
                 <span className="text-xs font-semibold w-6 text-center">{newSize}</span>
-                <button type="button" onClick={() => setNewSize(s => Math.min(32, s + 2))}
+                <button type="button" onClick={() => setNewSize(s => Math.min(48, s + 2))}
                   className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100">
-                  <Plus className="w-3 h-3" /></button>
+                  <Plus className="w-3 h-3" />
+                </button>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
-              <label className="text-[10px] text-gray-500">Warna teks</label>
+              <label className="text-[10px] text-gray-500">Warna</label>
               <input type="color" value={newColor}
                 onChange={e => setNewColor(e.target.value)}
                 className="w-7 h-7 rounded border border-gray-200 cursor-pointer p-0.5" />
@@ -622,24 +683,110 @@ function Step2({
             </button>
           </div>
 
-          {/* Existing texts */}
+          {/* Existing texts — with inline editing */}
           {state.texts.length > 0 && (
-            <div className="space-y-1.5 pt-2 border-t border-gray-200">
-              {state.texts.map(t => (
-                <div key={t.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-3 h-3 rounded-full border border-gray-200 shrink-0" style={{ background: t.color }} />
-                    <span className="text-xs font-medium text-gray-800 truncate">{t.text}</span>
-                    <span className="text-[10px] text-gray-400 shrink-0">
-                      {TEXT_POSITIONS.find(p => p.id === t.position)?.label}
-                    </span>
+            <div className="space-y-2 pt-2 border-t border-gray-200">
+              <p className="text-[10px] text-gray-400 font-medium">Klik pensil untuk edit • Drag di canvas untuk pindah posisi</p>
+              {state.texts.map(t => {
+                const isEditing = editingId === t.id;
+                return (
+                  <div key={t.id} className={`rounded-xl border overflow-hidden transition-all ${
+                    isEditing ? "border-teal-300 shadow-sm shadow-teal-100" : "border-gray-100 bg-white"
+                  }`}>
+                    {/* Row */}
+                    <div className={`flex items-center justify-between px-3 py-2 ${isEditing ? "bg-teal-50" : "bg-white"}`}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-3.5 h-3.5 rounded-full border border-gray-200 shrink-0" style={{ background: t.color }} />
+                        <span className="text-xs font-semibold text-gray-800 truncate">{t.text || <span className="italic text-gray-400">kosong</span>}</span>
+                        <span className="text-[10px] text-gray-400 shrink-0">{t.side === "front" ? "Depan" : "Belakang"}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        <button type="button" onClick={() => { setEditingId(isEditing ? null : t.id); if (!isEditing) setPreviewSide(t.side); }}
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                            isEditing ? "bg-teal-500 text-white" : "hover:bg-gray-100 text-gray-400 hover:text-teal-500"
+                          }`} title="Edit">
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button type="button" onClick={() => handleRemoveText(t.id)}
+                          className="w-6 h-6 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors" title="Hapus">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Inline edit panel */}
+                    {isEditing && (
+                      <div className="px-3 pb-3 pt-2 space-y-3 border-t border-teal-100 bg-white">
+                        {/* Text input */}
+                        <div>
+                          <label className="text-[10px] text-gray-500 mb-1 block">Teks</label>
+                          <input type="text" value={t.text}
+                            onChange={e => handleUpdateText(t.id, { text: e.target.value })}
+                            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-300 bg-white"
+                          />
+                        </div>
+
+                        {/* Preset position buttons */}
+                        <div>
+                          <label className="text-[10px] text-gray-500 mb-1.5 block">Posisi preset (atau drag langsung di canvas)</label>
+                          <div className="grid grid-cols-2 gap-1">
+                            {TEXT_PRESETS.map(p => (
+                              <button key={p.id} type="button"
+                                onClick={() => { handleUpdateText(t.id, { x: p.x, y: p.y, side: p.side }); setPreviewSide(p.side); }}
+                                className={`text-[10px] px-2 py-1.5 rounded-lg border transition-all text-left ${
+                                  t.side === p.side && Math.abs(t.x - p.x) < 3 && Math.abs(t.y - p.y) < 3
+                                    ? "bg-teal-600 text-white border-teal-600"
+                                    : "bg-white text-gray-600 border-gray-200 hover:border-teal-300"
+                                }`}>
+                                {p.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Color + size + bold + side */}
+                        <div className="flex flex-wrap items-center gap-3">
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-[10px] text-gray-500">Warna</label>
+                            <input type="color" value={t.color}
+                              onChange={e => handleUpdateText(t.id, { color: e.target.value })}
+                              className="w-7 h-7 rounded border border-gray-200 cursor-pointer p-0.5" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <label className="text-[10px] text-gray-500">Ukuran</label>
+                            <div className="flex items-center gap-1">
+                              <button type="button" onClick={() => handleUpdateText(t.id, { size: Math.max(8, t.size - 2) })}
+                                className="w-5 h-5 rounded border border-gray-200 flex items-center justify-center hover:bg-gray-100 text-gray-600">
+                                <Minus className="w-2.5 h-2.5" />
+                              </button>
+                              <span className="text-xs font-bold w-6 text-center">{t.size}</span>
+                              <button type="button" onClick={() => handleUpdateText(t.id, { size: Math.min(48, t.size + 2) })}
+                                className="w-5 h-5 rounded border border-gray-200 flex items-center justify-center hover:bg-gray-100 text-gray-600">
+                                <Plus className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <button type="button" onClick={() => handleUpdateText(t.id, { bold: !t.bold })}
+                            className={`px-2.5 py-0.5 rounded-lg border text-xs font-extrabold transition-all ${
+                              t.bold ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200"
+                            }`}>B</button>
+                          <div className="flex items-center gap-1">
+                            {(["front","back"] as PreviewSide[]).map(s => (
+                              <button key={s} type="button"
+                                onClick={() => { handleUpdateText(t.id, { side: s }); setPreviewSide(s); }}
+                                className={`px-2 py-0.5 rounded-lg border text-[10px] font-medium transition-all ${
+                                  t.side === s ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                                }`}>
+                                {s === "front" ? "Depan" : "Belakang"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <button type="button" onClick={() => handleRemoveText(t.id)}
-                    className="w-5 h-5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 flex items-center justify-center shrink-0 ml-2">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -802,6 +949,13 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
 
   const set = (partial: Partial<BuilderState>) => setState(prev => ({ ...prev, ...partial }));
 
+  const updateText = (id: string, patch: Partial<TextEl>) => {
+    setState(prev => ({
+      ...prev,
+      texts: prev.texts.map(t => t.id === id ? { ...t, ...patch } : t),
+    }));
+  };
+
   const totalQty   = Object.values(state.sizeBreakdown).reduce((a, b) => a + b, 0);
   const garment    = GARMENTS.find(g => g.id === state.garment)!;
   const method     = PRINT_METHODS.find(m => m.id === state.printMethod)!;
@@ -904,7 +1058,8 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
         {/* Left: Preview */}
         <div className="order-2 lg:order-1">
           <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-100 sticky top-4">
-            <ShirtPreview state={state} side={previewSide} onChangeSide={setPreviewSide} />
+            <ShirtPreview state={state} side={previewSide} onChangeSide={setPreviewSide}
+              onUpdateText={step === 2 ? updateText : undefined} />
 
             {/* Quick summary */}
             <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 gap-2 text-xs">

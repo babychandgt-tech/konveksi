@@ -35,15 +35,16 @@ export interface Product {
   image_urls: string[] | null;
 }
 
-export type Section = "beranda" | "katalog" | "pesanan" | "profil" | "keranjang" | "checkout";
+export type Section = "beranda" | "katalog" | "pesanan" | "profil" | "keranjang" | "checkout" | "custom";
 
-import { LayoutDashboard, Store, ShoppingCart, ShoppingBag, User } from "lucide-react";
+import { LayoutDashboard, Store, ShoppingCart, ShoppingBag, User, Wand2 } from "lucide-react";
 export const menuItems: { id: Section; label: string; icon: React.ElementType }[] = [
-  { id: "beranda", label: "Beranda", icon: LayoutDashboard },
-  { id: "katalog", label: "Katalog Produk", icon: Store },
-  { id: "keranjang", label: "Keranjang", icon: ShoppingCart },
-  { id: "pesanan", label: "Pesanan Saya", icon: ShoppingBag },
-  { id: "profil", label: "Profil", icon: User },
+  { id: "beranda",  label: "Beranda",         icon: LayoutDashboard },
+  { id: "katalog",  label: "Katalog Produk",   icon: Store },
+  { id: "custom",   label: "Custom Builder",   icon: Wand2 },
+  { id: "keranjang",label: "Keranjang",        icon: ShoppingCart },
+  { id: "pesanan",  label: "Pesanan Saya",     icon: ShoppingBag },
+  { id: "profil",   label: "Profil",           icon: User },
 ];
 
 export const categoryColors: Record<string, string> = {
@@ -56,6 +57,7 @@ export const categoryColors: Record<string, string> = {
   Celana:         "bg-violet-50 text-violet-700 border-violet-200",
   Jaket:          "bg-orange-50 text-orange-700 border-orange-200",
   Rompi:          "bg-pink-50 text-pink-700 border-pink-200",
+  Custom:         "bg-purple-50 text-purple-700 border-purple-200",
 };
 
 export const formatRupiah = (n: number) =>

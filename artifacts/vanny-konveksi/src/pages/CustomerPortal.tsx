@@ -15,6 +15,7 @@ import PortalPesanan from "./portal/PortalPesanan";
 import PortalProfil from "./portal/PortalProfil";
 import PortalCart from "./portal/PortalCart";
 import PortalCheckout from "./portal/PortalCheckout";
+import PortalCustomBuilder from "./portal/PortalCustomBuilder";
 import ProductDetailDialog from "./portal/ProductDetailDialog";
 
 export default function CustomerPortal() {
@@ -257,6 +258,10 @@ export default function CustomerPortal() {
                   onSuccess={handleCheckoutSuccess}
                   setSection={setSection}
                 />
+              )}
+
+              {section === "custom" && (
+                <PortalCustomBuilder onAddToCart={handleAddToCart} setSection={setSection} />
               )}
 
               {section === "pesanan" && (

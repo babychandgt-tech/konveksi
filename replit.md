@@ -33,8 +33,10 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 - **Preview path**: `/`
 - **Description**: Admin panel web app for Vanny Konveksi garment/konveksi business
 - **Features**: Login, Dashboard, Katalog Produk, Pesanan, Pegawai, Produksi (Kanban), Keuangan, Pelanggan, Pengaturan
+- **Custom Builder**: Portal untuk pelanggan design baju sendiri (PortalCustomBuilder.tsx) — semua settings dimuat dari Supabase via BuilderSettingsCtx context
+- **Builder Settings Admin**: Tab "Custom Builder" di halaman Pengaturan (PengaturanBuilder.tsx) — kelola harga garmen, warna kain, metode cetak, ukuran, min order langsung dari admin dashboard
+- **Supabase table**: `builder_settings` (id TEXT PK, data JSONB, updated_at TIMESTAMPTZ) — rows: garments, colors, print_methods, general
 - **Language**: 100% Indonesian
-- **Stack**: React + Vite + Tailwind CSS + Recharts + Lucide React + Wouter
-- **Data**: All UI/design only — no backend, dummy data hardcoded
-- **Colors**: Navy primary (#1A3C5E), Amber accent (#E8A838), dark sidebar (#0F1C2E)
+- **Stack**: React + Vite + Tailwind CSS + Recharts + Lucide React + Wouter + Supabase
+- **Colors**: Navy primary (#1A3C5E), Amber accent (#E8A838), dark sidebar (#0F1C2E), Teal primary (#0d9488)
 - **Fonts**: Plus Jakarta Sans (headings), DM Sans (body)

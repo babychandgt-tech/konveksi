@@ -103,6 +103,15 @@ export interface Database {
         Insert: Omit<Database["public"]["Tables"]["transactions"]["Row"], "id" | "created_at"> & { id?: string; created_at?: string };
         Update: Partial<Database["public"]["Tables"]["transactions"]["Insert"]>;
       };
+      builder_settings: {
+        Row: {
+          id: string;
+          data: Record<string, unknown> | unknown[];
+          updated_at: string;
+        };
+        Insert: { id: string; data: Record<string, unknown> | unknown[]; updated_at?: string };
+        Update: Partial<Database["public"]["Tables"]["builder_settings"]["Insert"]>;
+      };
     };
   };
 }

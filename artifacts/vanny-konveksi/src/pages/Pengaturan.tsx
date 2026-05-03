@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Building2, Phone, Mail, MapPin, CreditCard, Shield } from "lucide-react";
+import { Building2, Phone, Mail, MapPin, CreditCard, Shield, Wand2 } from "lucide-react";
+import PengaturanBuilder from "./PengaturanBuilder";
 
 export default function Pengaturan() {
   return (
@@ -17,23 +18,21 @@ export default function Pengaturan() {
         </div>
 
         <Tabs defaultValue="profil" className="w-full">
-          <TabsList className="mb-5 border-b border-gray-100 rounded-none h-auto p-0 bg-transparent w-full justify-start gap-0">
-            <TabsTrigger
-              value="profil"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:text-teal-700 data-[state=active]:bg-transparent text-gray-500 hover:text-gray-700 py-3 px-5 text-sm font-medium"
-            >
+          <TabsList className="mb-5 border-b border-gray-100 rounded-none h-auto p-0 bg-transparent w-full justify-start gap-0 overflow-x-auto flex-wrap">
+            <TabsTrigger value="profil"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:text-teal-700 data-[state=active]:bg-transparent text-gray-500 hover:text-gray-700 py-3 px-5 text-sm font-medium whitespace-nowrap">
               Profil Toko
             </TabsTrigger>
-            <TabsTrigger
-              value="pembayaran"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:text-teal-700 data-[state=active]:bg-transparent text-gray-500 hover:text-gray-700 py-3 px-5 text-sm font-medium"
-            >
+            <TabsTrigger value="pembayaran"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:text-teal-700 data-[state=active]:bg-transparent text-gray-500 hover:text-gray-700 py-3 px-5 text-sm font-medium whitespace-nowrap">
               Metode Pembayaran
             </TabsTrigger>
-            <TabsTrigger
-              value="akses"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:text-teal-700 data-[state=active]:bg-transparent text-gray-500 hover:text-gray-700 py-3 px-5 text-sm font-medium"
-            >
+            <TabsTrigger value="builder"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:text-teal-700 data-[state=active]:bg-transparent text-gray-500 hover:text-gray-700 py-3 px-5 text-sm font-medium whitespace-nowrap flex items-center gap-1.5">
+              <Wand2 className="w-3.5 h-3.5" /> Custom Builder
+            </TabsTrigger>
+            <TabsTrigger value="akses"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-teal-600 data-[state=active]:text-teal-700 data-[state=active]:bg-transparent text-gray-500 hover:text-gray-700 py-3 px-5 text-sm font-medium whitespace-nowrap">
               Hak Akses
             </TabsTrigger>
           </TabsList>
@@ -149,6 +148,10 @@ export default function Pengaturan() {
                 </Button>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="builder">
+            <PengaturanBuilder />
           </TabsContent>
 
           <TabsContent value="akses">

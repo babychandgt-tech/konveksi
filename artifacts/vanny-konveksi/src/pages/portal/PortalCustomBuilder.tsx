@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, createContext, useContext } from "react";
+import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight, ChevronLeft, Check, Plus, Minus, Upload,
@@ -100,6 +101,65 @@ const DEFAULT_STATE: BuilderState = {
   texts: [], logoDataUrl: null, logoSide: "front", logoX: 50, logoY: 42, logoSize: 80,
   sizeBreakdown: { S: 0, M: 0, L: 0, XL: 0 },
 };
+
+/* ─── Builder Settings Context ───────────────────────────── */
+interface GarmentDef  { id: string; label: string; basePrice: number; desc: string }
+interface ColorDef    { name: string; hex: string }
+interface PrintDef    { id: string; label: string; desc: string; surcharge: number; color: string }
+interface BuilderCtxType {
+  garments:     GarmentDef[];
+  colors:       ColorDef[];
+  printMethods: PrintDef[];
+  sizes:        string[];
+  minOrder:     number;
+}
+
+const PRINT_METHOD_COLORS: Record<string, string> = {
+  tanpa:  "border-gray-200 bg-gray-50",
+  sablon: "border-teal-200 bg-teal-50",
+  dtf:    "border-blue-200 bg-blue-50",
+  bordir: "border-amber-200 bg-amber-50",
+};
+
+const BuilderSettingsCtx = createContext<BuilderCtxType>({
+  garments:     GARMENTS,
+  colors:       FABRIC_COLORS,
+  printMethods: PRINT_METHODS,
+  sizes:        SIZES,
+  minOrder:     1,
+});
+
+function useBuilderSettingsLoader(): BuilderCtxType {
+  const [garments,     setGarments]     = useState<GarmentDef[]>(GARMENTS);
+  const [colors,       setColors]       = useState<ColorDef[]>(FABRIC_COLORS);
+  const [printMethods, setPrintMethods] = useState<PrintDef[]>(PRINT_METHODS);
+  const [sizes,        setSizes]        = useState<string[]>(SIZES);
+  const [minOrder,     setMinOrder]     = useState(1);
+
+  useEffect(() => {
+    supabase.from("builder_settings").select("id, data").then(({ data }) => {
+      if (!data) return;
+      for (const row of data) {
+        if (row.id === "garments")
+          setGarments(row.data as unknown as GarmentDef[]);
+        if (row.id === "colors")
+          setColors(row.data as unknown as ColorDef[]);
+        if (row.id === "print_methods")
+          setPrintMethods((row.data as unknown as { id: string; label: string; desc: string; surcharge: number }[]).map(m => ({
+            ...m,
+            color: PRINT_METHOD_COLORS[m.id] ?? "border-gray-200 bg-gray-50",
+          })));
+        if (row.id === "general") {
+          const g = row.data as { sizes?: string[]; min_order?: number };
+          if (g.sizes)     setSizes(g.sizes);
+          if (g.min_order !== undefined) setMinOrder(g.min_order);
+        }
+      }
+    });
+  }, []);
+
+  return { garments, colors, printMethods, sizes, minOrder };
+}
 
 /* ─── SVG Garment Components ─────────────────────────────── */
 function isLight(hex: string) {
@@ -621,6 +681,7 @@ function ShirtPreview({
   onUpdateText?: (id: string, patch: Partial<TextEl>) => void;
   onUpdateLogo?: (patch: { x: number; y: number }) => void;
 }) {
+  const { colors } = useContext(BuilderSettingsCtx);
   const isSleeve     = side === "sleeve-l" || side === "sleeve-r";
   const garmentSide: PreviewSide = isSleeve ? "front" : side as PreviewSide;
   const GarmentComp  = GARMENT_SVG[state.garment];
@@ -917,7 +978,7 @@ function ShirtPreview({
         {/* Color info */}
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <div className="w-4 h-4 rounded-full border border-gray-300 shadow-sm flex-shrink-0" style={{ background: state.color }} />
-          <span>{FABRIC_COLORS.find(c => c.hex === state.color)?.name ?? "Custom"}</span>
+          <span>{colors.find(c => c.hex === state.color)?.name ?? "Custom"}</span>
         </div>
       </div>
     </div>
@@ -926,16 +987,17 @@ function ShirtPreview({
 
 /* ─── Step 1: Pilih Jenis Baju ───────────────────────────── */
 function Step1({ state, set }: { state: BuilderState; set: (s: Partial<BuilderState>) => void }) {
+  const { garments, colors } = useContext(BuilderSettingsCtx);
   return (
     <div className="space-y-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Pilih Jenis Baju</p>
         <div className="grid grid-cols-2 gap-3">
-          {GARMENTS.map(g => {
+          {garments.map(g => {
             const GComp = GARMENT_SVG[g.id];
             const active = state.garment === g.id;
             return (
-              <button key={g.id} type="button" onClick={() => set({ garment: g.id })}
+              <button key={g.id} type="button" onClick={() => set({ garment: g.id as GarmentId })}
                 className={`relative rounded-2xl border-2 p-3 text-left transition-all ${
                   active ? "border-teal-500 bg-teal-50 shadow-md shadow-teal-100" : "border-gray-200 bg-white hover:border-gray-300"
                 }`}>
@@ -961,7 +1023,7 @@ function Step1({ state, set }: { state: BuilderState; set: (s: Partial<BuilderSt
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Warna Kain</p>
         <div className="flex flex-wrap gap-2">
-          {FABRIC_COLORS.map(c => (
+          {colors.map(c => (
             <button key={c.hex} type="button" onClick={() => set({ color: c.hex })}
               title={c.name}
               className={`w-8 h-8 rounded-full border-2 transition-all hover:scale-110 ${
@@ -986,6 +1048,7 @@ function Step1({ state, set }: { state: BuilderState; set: (s: Partial<BuilderSt
 function Step2({
   state, set, previewSide, setPreviewSide,
 }: { state: BuilderState; set: (s: Partial<BuilderState>) => void; previewSide: ViewSide; setPreviewSide: (s: ViewSide) => void }) {
+  const { printMethods } = useContext(BuilderSettingsCtx);
   const fileRef = useRef<HTMLInputElement>(null);
   const [newText,  setNewText]  = useState("");
   const [newColor, setNewColor] = useState("#ffffff");
@@ -1034,8 +1097,8 @@ function Step2({
       <div>
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Metode Cetak</p>
         <div className="grid grid-cols-2 gap-2">
-          {PRINT_METHODS.map(m => (
-            <button key={m.id} type="button" onClick={() => set({ printMethod: m.id })}
+          {printMethods.map(m => (
+            <button key={m.id} type="button" onClick={() => set({ printMethod: m.id as PrintMethod })}
               className={`relative rounded-xl border-2 p-3 text-left transition-all ${
                 state.printMethod === m.id
                   ? "border-teal-500 bg-teal-50 shadow-sm"
@@ -1365,10 +1428,11 @@ function Step2({
 
 /* ─── Step 3: Ukuran & Jumlah ────────────────────────────── */
 function Step3({ state, set }: { state: BuilderState; set: (s: Partial<BuilderState>) => void }) {
+  const { garments, printMethods, sizes } = useContext(BuilderSettingsCtx);
   const totalQty = Object.values(state.sizeBreakdown).reduce((a, b) => a + b, 0);
-  const garment  = GARMENTS.find(g => g.id === state.garment)!;
-  const method   = PRINT_METHODS.find(m => m.id === state.printMethod)!;
-  const unitPrice = garment.basePrice + method.surcharge;
+  const garment  = garments.find(g => g.id === state.garment) ?? garments[0];
+  const method   = printMethods.find(m => m.id === state.printMethod) ?? printMethods[0];
+  const unitPrice = (garment?.basePrice ?? 0) + (method?.surcharge ?? 0);
 
   const setSize = (size: string, delta: number) => {
     set({
@@ -1379,8 +1443,7 @@ function Step3({ state, set }: { state: BuilderState; set: (s: Partial<BuilderSt
     });
   };
 
-  // Make sure all SIZES exist in breakdown
-  const breakdown = Object.fromEntries(SIZES.map(s => [s, state.sizeBreakdown[s] ?? 0]));
+  const breakdown = Object.fromEntries(sizes.map(s => [s, state.sizeBreakdown[s] ?? 0]));
 
   return (
     <div className="space-y-5">
@@ -1468,6 +1531,7 @@ const STEPS = [
 interface Props { onAddToCart: (item: CartItem) => void; setSection: (s: any) => void; }
 
 export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) {
+  const settings = useBuilderSettingsLoader();
   const [step, setStep] = useState(1);
   const [state, setState] = useState<BuilderState>(DEFAULT_STATE);
   const [previewSide, setPreviewSide] = useState<ViewSide>("front");
@@ -1487,10 +1551,11 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
     set({ logoX: patch.x, logoY: patch.y });
   };
 
+  const { garments, printMethods, colors, minOrder } = settings;
   const totalQty   = Object.values(state.sizeBreakdown).reduce((a, b) => a + b, 0);
-  const garment    = GARMENTS.find(g => g.id === state.garment)!;
-  const method     = PRINT_METHODS.find(m => m.id === state.printMethod)!;
-  const unitPrice  = garment.basePrice + method.surcharge;
+  const garment    = garments.find(g => g.id === state.garment) ?? garments[0];
+  const method     = printMethods.find(m => m.id === state.printMethod) ?? printMethods[0];
+  const unitPrice  = (garment?.basePrice ?? 0) + (method?.surcharge ?? 0);
   const totalPrice = unitPrice * totalQty;
 
   const handleAddToCart = () => {
@@ -1508,12 +1573,12 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
 
     const virtualProduct: Product = {
       id: `custom-${Date.now()}`,
-      name: `Custom ${garment.label}`,
+      name: `Custom ${garment?.label ?? "Baju"}`,
       category: "Custom",
-      material: `${method.label} — ${sizeLabel}`,
-      description: `${textSummary}${logoSummary}Warna: ${FABRIC_COLORS.find(c => c.hex === state.color)?.name ?? state.color}`,
+      material: `${method?.label ?? ""} — ${sizeLabel}`,
+      description: `${textSummary}${logoSummary}Warna: ${colors.find(c => c.hex === state.color)?.name ?? state.color}`,
       price: unitPrice,
-      min_order: 1,
+      min_order: minOrder,
       status: "aktif",
       sizes: null, size_prices: null, image_url: null, image_urls: null,
     };
@@ -1535,6 +1600,7 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
   const reset = () => { setState(DEFAULT_STATE); setStep(1); setAdded(false); setPreviewSide("front"); };
 
   return (
+    <BuilderSettingsCtx.Provider value={settings}>
     <div className="space-y-5 pb-8">
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -1677,5 +1743,6 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
         )}
       </AnimatePresence>
     </div>
+    </BuilderSettingsCtx.Provider>
   );
 }

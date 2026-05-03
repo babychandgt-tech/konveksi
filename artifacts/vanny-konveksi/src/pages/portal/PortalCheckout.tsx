@@ -39,7 +39,6 @@ export default function PortalCheckout({ cartItems, profile, onSuccess, setSecti
   const [snapReady, setSnapReady] = useState(false);
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.unitPrice * item.qty, 0);
-  const apiBase = import.meta.env.VITE_API_BASE_URL ?? "";
   const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY ?? "";
 
   useEffect(() => {
@@ -83,7 +82,7 @@ export default function PortalCheckout({ cartItems, profile, onSuccess, setSecti
         quantity: item.qty,
       }));
 
-      const res = await fetch(`${apiBase}/api/payment/create-token`, {
+      const res = await fetch(`/api/payment/create-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

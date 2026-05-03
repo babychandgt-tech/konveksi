@@ -43,7 +43,7 @@ export default function CustomerPortal() {
       const { data } = await supabase
         .from("orders")
         .select("*")
-        .ilike("customer_name", `%${profile.full_name}%`)
+        .or(`customer_id.eq.${profile.id},customer_name.ilike.%${profile.full_name}%`)
         .order("created_at", { ascending: false });
       if (data) setOrders(data as Order[]);
       setLoading(false);
@@ -106,7 +106,7 @@ export default function CustomerPortal() {
     const { data } = await supabase
       .from("orders")
       .select("*")
-      .ilike("customer_name", `%${profile?.full_name ?? ""}%`)
+      .or(`customer_id.eq.${profile?.id ?? ""},customer_name.ilike.%${profile?.full_name ?? ""}%`)
       .order("created_at", { ascending: false });
     if (data) setOrders(data as Order[]);
     toast({

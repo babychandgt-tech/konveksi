@@ -21,7 +21,7 @@ declare global {
 
 interface Props {
   cartItems: CartItem[];
-  profile: { full_name: string; email?: string } | null;
+  profile: { id: string; full_name: string; email?: string } | null;
   onSuccess: () => void;
   setSection: (s: Section) => void;
 }
@@ -127,7 +127,7 @@ export default function PortalCheckout({ cartItems, profile, onSuccess, setSecti
     for (const item of cartItems) {
       await supabase.from("orders").insert({
         id: `${orderId}-${item.id.slice(-6)}`,
-        customer_id: "00000000-0000-0000-0000-000000000000",
+        customer_id: profile?.id ?? "",
         customer_name: form.name,
         product: `${item.product.name}${item.selectedSize ? ` (${item.selectedSize})` : ""}`,
         qty: item.qty,

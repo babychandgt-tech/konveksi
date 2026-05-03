@@ -1,15 +1,6 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  Scissors, LogOut, ShoppingBag, LayoutDashboard, User, ChevronRight, Store,
-} from "lucide-react";
-import { Section } from "./types";
-
-export const menuItems: { id: Section; label: string; icon: React.ElementType }[] = [
-  { id: "beranda", label: "Beranda", icon: LayoutDashboard },
-  { id: "katalog", label: "Katalog Produk", icon: Store },
-  { id: "pesanan", label: "Pesanan Saya", icon: ShoppingBag },
-  { id: "profil", label: "Profil", icon: User },
-];
+import { Scissors, LogOut, ChevronRight, ShoppingCart } from "lucide-react";
+import { Section, CartItem, menuItems } from "./types";
 
 interface Props {
   isMobile?: boolean;
@@ -21,12 +12,15 @@ interface Props {
   initials: string;
   fullName: string;
   onLogout: () => void;
+  cartItems?: CartItem[];
 }
 
 export default function PortalSidebar({
   isMobile = false, collapsed, setCollapsed, section, setSection,
-  setMobileOpen, initials, fullName, onLogout,
+  setMobileOpen, initials, fullName, onLogout, cartItems = [],
 }: Props) {
+  const cartCount = cartItems.reduce((sum, i) => sum + i.qty, 0);
+
   return (
     <>
       <div className="h-[72px] flex items-center justify-between px-5 border-b border-white/10">
@@ -56,7 +50,8 @@ export default function PortalSidebar({
 
       <div className="flex-1 py-4 overflow-y-auto flex flex-col gap-0.5 px-3">
         {menuItems.map((item) => {
-          const active = section === item.id;
+          const active = section === item.id || (item.id === "keranjang" && section === "checkout");
+          const isCart = item.id === "keranjang";
           return (
             <button
               key={item.id}
@@ -66,10 +61,22 @@ export default function PortalSidebar({
               }`}
             >
               {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-teal-400 rounded-r-full" />}
-              <item.icon className={`w-[18px] h-[18px] flex-shrink-0 ${active ? "text-teal-300" : "group-hover:text-teal-300"}`} />
-              <span className={`text-sm font-medium whitespace-nowrap transition-all duration-300 ${collapsed && !isMobile ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
+              <div className="relative flex-shrink-0">
+                <item.icon className={`w-[18px] h-[18px] ${active ? "text-teal-300" : "group-hover:text-teal-300"}`} />
+                {isCart && cartCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-orange-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                    {cartCount > 99 ? "99+" : cartCount}
+                  </span>
+                )}
+              </div>
+              <span className={`text-sm font-medium whitespace-nowrap transition-all duration-300 flex-1 ${collapsed && !isMobile ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
                 {item.label}
               </span>
+              {isCart && cartCount > 0 && (!collapsed || isMobile) && (
+                <span className="ml-auto bg-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                  {cartCount}
+                </span>
+              )}
             </button>
           );
         })}

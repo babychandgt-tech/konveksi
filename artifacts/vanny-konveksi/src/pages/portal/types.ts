@@ -6,6 +6,17 @@ export interface Order {
   status: "baru" | "produksi" | "selesai" | "batal";
   deadline: string;
   created_at: string;
+  customer_name?: string;
+  notes?: string;
+}
+
+export interface CartItem {
+  id: string;
+  product: Product;
+  qty: number;
+  selectedSize: string | null;
+  unitPrice: number;
+  notes: string;
 }
 
 export interface Product {
@@ -23,7 +34,16 @@ export interface Product {
   image_urls: string[] | null;
 }
 
-export type Section = "beranda" | "katalog" | "pesanan" | "profil";
+export type Section = "beranda" | "katalog" | "pesanan" | "profil" | "keranjang" | "checkout";
+
+import { LayoutDashboard, Store, ShoppingCart, ShoppingBag, User } from "lucide-react";
+export const menuItems: { id: Section; label: string; icon: React.ElementType }[] = [
+  { id: "beranda", label: "Beranda", icon: LayoutDashboard },
+  { id: "katalog", label: "Katalog Produk", icon: Store },
+  { id: "keranjang", label: "Keranjang", icon: ShoppingCart },
+  { id: "pesanan", label: "Pesanan Saya", icon: ShoppingBag },
+  { id: "profil", label: "Profil", icon: User },
+];
 
 export const categoryColors: Record<string, string> = {
   Kaos:           "bg-teal-50 text-teal-700 border-teal-200",

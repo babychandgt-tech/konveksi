@@ -3,18 +3,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Menu, ChevronRight, Bell } from "lucide-react";
+import { Menu, ChevronRight, Bell, ShoppingCart } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-import { Order, Product, Section } from "./portal/types";
-import PortalSidebar, { menuItems } from "./portal/PortalSidebar";
+import { Order, Product, CartItem, Section, menuItems } from "./portal/types";
+import PortalSidebar from "./portal/PortalSidebar";
 import PortalBeranda from "./portal/PortalBeranda";
 import PortalKatalog from "./portal/PortalKatalog";
 import PortalPesanan from "./portal/PortalPesanan";
 import PortalProfil from "./portal/PortalProfil";
+import PortalCart from "./portal/PortalCart";
+import PortalCheckout from "./portal/PortalCheckout";
 import ProductDetailDialog from "./portal/ProductDetailDialog";
 
 export default function CustomerPortal() {
   const { profile, logout } = useAuth();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [section, setSection] = useState<Section>("beranda");
@@ -28,6 +32,9 @@ export default function CustomerPortal() {
   const [filterCategory, setFilterCategory] = useState("semua");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+
+  // Cart state
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -63,6 +70,56 @@ export default function CustomerPortal() {
     setActiveImageIdx(0);
   };
 
+  const handleAddToCart = (item: CartItem) => {
+    setCartItems((prev) => {
+      const existingIdx = prev.findIndex(
+        (c) => c.product.id === item.product.id && c.selectedSize === item.selectedSize
+      );
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          qty: updated[existingIdx].qty + item.qty,
+        };
+        return updated;
+      }
+      return [...prev, item];
+    });
+    toast({
+      title: "Ditambahkan ke keranjang",
+      description: `${item.product.name}${item.selectedSize ? ` (${item.selectedSize})` : ""} × ${item.qty}`,
+    });
+  };
+
+  const handleCartUpdate = (id: string, qty: number) => {
+    setCartItems((prev) => prev.map((c) => c.id === id ? { ...c, qty } : c));
+  };
+
+  const handleCartRemove = (id: string) => {
+    setCartItems((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const handleCheckoutSuccess = async () => {
+    setCartItems([]);
+    setSection("pesanan");
+    const { data } = await supabase
+      .from("orders")
+      .select("*")
+      .ilike("customer_name", `%${profile?.full_name ?? ""}%`)
+      .order("created_at", { ascending: false });
+    if (data) setOrders(data as Order[]);
+    toast({
+      title: "Pesanan berhasil dibuat!",
+      description: "Pesanan kamu sudah masuk. Tim kami akan segera memproses.",
+    });
+  };
+
+  const cartCount = cartItems.reduce((sum, i) => sum + i.qty, 0);
+
+  const sectionLabel = section === "checkout"
+    ? "Checkout"
+    : menuItems.find((m) => m.id === section)?.label ?? "";
+
   return (
     <div className="min-h-screen flex overflow-hidden font-sans bg-background">
       {/* Sidebar Desktop */}
@@ -79,6 +136,7 @@ export default function CustomerPortal() {
           initials={initials}
           fullName={profile?.full_name ?? "Pelanggan"}
           onLogout={logout}
+          cartItems={cartItems}
         />
       </aside>
 
@@ -107,6 +165,7 @@ export default function CustomerPortal() {
                 initials={initials}
                 fullName={profile?.full_name ?? "Pelanggan"}
                 onLogout={logout}
+                cartItems={cartItems}
               />
             </motion.aside>
           </>
@@ -127,17 +186,25 @@ export default function CustomerPortal() {
             <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
               <span>Vanny Konveksi</span>
               <ChevronRight className="w-3.5 h-3.5 opacity-40" />
-              <span className="text-foreground font-medium">
-                {menuItems.find((m) => m.id === section)?.label}
-              </span>
+              <span className="text-foreground font-medium">{sectionLabel}</span>
             </div>
-            <h1 className="lg:hidden font-display font-bold text-lg text-foreground">
-              {menuItems.find((m) => m.id === section)?.label}
-            </h1>
+            <h1 className="lg:hidden font-display font-bold text-lg text-foreground">{sectionLabel}</h1>
           </div>
           <div className="flex items-center gap-2">
             <button className="relative w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
               <Bell className="w-5 h-5 text-gray-500" />
+            </button>
+            {/* Cart button in topbar */}
+            <button
+              onClick={() => setSection("keranjang")}
+              className="relative w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+            >
+              <ShoppingCart className="w-5 h-5 text-gray-500" />
+              {cartCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 bg-orange-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                  {cartCount}
+                </span>
+              )}
             </button>
             <Avatar className="w-8 h-8 border border-teal-200">
               <AvatarFallback className="bg-teal-600 text-white text-xs font-semibold">{initials}</AvatarFallback>
@@ -170,6 +237,24 @@ export default function CustomerPortal() {
                 />
               )}
 
+              {section === "keranjang" && (
+                <PortalCart
+                  cartItems={cartItems}
+                  onUpdate={handleCartUpdate}
+                  onRemove={handleCartRemove}
+                  setSection={setSection}
+                />
+              )}
+
+              {section === "checkout" && (
+                <PortalCheckout
+                  cartItems={cartItems}
+                  profile={profile}
+                  onSuccess={handleCheckoutSuccess}
+                  setSection={setSection}
+                />
+              )}
+
               {section === "pesanan" && (
                 <PortalPesanan orders={orders} loading={loading} />
               )}
@@ -187,6 +272,7 @@ export default function CustomerPortal() {
         imageIdx={activeImageIdx}
         setImageIdx={setActiveImageIdx}
         onClose={() => setActiveProduct(null)}
+        onAddToCart={handleAddToCart}
       />
     </div>
   );

@@ -844,7 +844,7 @@ function Step2({
   const fileRef = useRef<HTMLInputElement>(null);
   const [newText,  setNewText]  = useState("");
   const [newColor, setNewColor] = useState("#ffffff");
-  const [newSize,  setNewSize]  = useState(14);
+  const [newSize,  setNewSize]  = useState(10);
   const [newBold,  setNewBold]  = useState(true);
   const [newPreset, setNewPreset] = useState("chest-center");
   const [newFont,  setNewFont]  = useState(DEFAULT_FONT);
@@ -940,7 +940,7 @@ function Step2({
             <div>
               <label className="text-[10px] text-gray-500 mb-1 block">Ukuran font</label>
               <div className="flex items-center gap-1.5">
-                <button type="button" onClick={() => setNewSize(s => Math.max(8, s - 2))}
+                <button type="button" onClick={() => setNewSize(s => Math.max(6, s - 2))}
                   className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100">
                   <Minus className="w-3 h-3" />
                 </button>
@@ -1077,7 +1077,7 @@ function Step2({
                           <div className="flex items-center gap-1.5">
                             <label className="text-[10px] text-gray-500">Ukuran</label>
                             <div className="flex items-center gap-1">
-                              <button type="button" onClick={() => handleUpdateText(t.id, { size: Math.max(8, t.size - 2) })}
+                              <button type="button" onClick={() => handleUpdateText(t.id, { size: Math.max(6, t.size - 2) })}
                                 className="w-5 h-5 rounded border border-gray-200 flex items-center justify-center hover:bg-gray-100 text-gray-600">
                                 <Minus className="w-2.5 h-2.5" />
                               </button>
@@ -1186,7 +1186,7 @@ function Step2({
                   <span className="text-[11px] text-gray-500">Ukuran logo</span>
                   <span className="text-[11px] font-semibold text-gray-700">{state.logoSize}px</span>
                 </div>
-                <input type="range" min={32} max={160} step={4}
+                <input type="range" min={16} max={160} step={2}
                   value={state.logoSize}
                   onChange={e => set({ logoSize: Number(e.target.value) })}
                   className="w-full h-1.5 rounded-full accent-teal-600 cursor-pointer" />

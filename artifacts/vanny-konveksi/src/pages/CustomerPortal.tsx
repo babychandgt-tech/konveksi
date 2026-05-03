@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { useCart } from "@/hooks/useCart";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Menu, ChevronRight, Bell, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +18,7 @@ import PortalCheckout from "./portal/PortalCheckout";
 import ProductDetailDialog from "./portal/ProductDetailDialog";
 
 export default function CustomerPortal() {
-  const { profile, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,21 +34,8 @@ export default function CustomerPortal() {
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
-  // Cart state — persisted to localStorage
-  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("vanny-cart");
-      return saved ? (JSON.parse(saved) as CartItem[]) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("vanny-cart", JSON.stringify(cartItems));
-    } catch {}
-  }, [cartItems]);
+  // Cart — synced ke Supabase per akun, fallback localStorage
+  const { cartItems, setCartItems } = useCart(user?.id);
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -207,7 +195,6 @@ export default function CustomerPortal() {
             <button className="relative w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
               <Bell className="w-5 h-5 text-gray-500" />
             </button>
-            {/* Cart button in topbar */}
             <button
               onClick={() => setSection("keranjang")}
               className="relative w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"

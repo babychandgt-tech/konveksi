@@ -33,8 +33,21 @@ export default function CustomerPortal() {
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
 
-  // Cart state
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  // Cart state — persisted to localStorage
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("vanny-cart");
+      return saved ? (JSON.parse(saved) as CartItem[]) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("vanny-cart", JSON.stringify(cartItems));
+    } catch {}
+  }, [cartItems]);
 
   useEffect(() => {
     const fetchOrders = async () => {

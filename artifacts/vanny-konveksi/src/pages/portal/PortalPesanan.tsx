@@ -1,22 +1,103 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, ShoppingBag, X, FileText, ChevronRight,
-  CheckCircle2, PackageSearch, Clock, PackageOpen, XCircle,
+  CheckCircle2, PackageOpen, XCircle, Scissors, Shirt, Sparkles, Clock2,
 } from "lucide-react";
 import { Order, formatRupiah, formatDate } from "./types";
 import { StatusBadge, StatusIcon, ProgressBar } from "./StatusComponents";
 import { Button } from "@/components/ui/button";
 import { printInvoice } from "@/lib/printInvoice";
+import { supabase } from "@/lib/supabase";
 
 interface Props {
   orders: Order[];
   loading: boolean;
 }
 
+interface ProductionTask {
+  id: string;
+  stage: "antrian" | "cutting" | "jahit" | "finishing";
+  progress: number;
+}
+
 const STATUS_LABEL: Record<string, string> = {
   baru: "Baru", produksi: "Dalam Produksi", selesai: "Selesai", batal: "Dibatalkan",
 };
+
+const STAGES: { id: ProductionTask["stage"]; label: string; icon: React.ElementType; color: string; activeColor: string; doneColor: string }[] = [
+  { id: "antrian",  label: "Antrian",  icon: Clock2,    color: "text-gray-400",   activeColor: "text-teal-600",   doneColor: "text-emerald-600" },
+  { id: "cutting",  label: "Cutting",  icon: Scissors,  color: "text-gray-400",   activeColor: "text-teal-600",   doneColor: "text-emerald-600" },
+  { id: "jahit",    label: "Jahit",    icon: Shirt,     color: "text-gray-400",   activeColor: "text-amber-600",  doneColor: "text-emerald-600" },
+  { id: "finishing",label: "Finishing",icon: Sparkles,  color: "text-gray-400",   activeColor: "text-emerald-600",doneColor: "text-emerald-600" },
+];
+
+function ProductionStages({ task }: { task: ProductionTask }) {
+  const currentIdx = STAGES.findIndex((s) => s.id === task.stage);
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+      <div className="flex justify-between items-center mb-3">
+        <h4 className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">Tahap Produksi</h4>
+        <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full capitalize">
+          {STAGES[currentIdx]?.label ?? "—"}
+        </span>
+      </div>
+
+      {/* Step indicators */}
+      <div className="flex items-center gap-0">
+        {STAGES.map((stage, i) => {
+          const done   = i < currentIdx;
+          const active = i === currentIdx;
+          const Icon   = stage.icon;
+          const isLast = i === STAGES.length - 1;
+
+          return (
+            <div key={stage.id} className="flex items-center flex-1">
+              <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all ${
+                  done   ? "bg-emerald-100 border-emerald-300"  :
+                  active ? "bg-amber-100 border-amber-400 shadow-sm shadow-amber-200" :
+                           "bg-white border-gray-200"
+                }`}>
+                  <Icon className={`w-4 h-4 ${
+                    done ? "text-emerald-600" : active ? "text-amber-600" : "text-gray-300"
+                  }`} />
+                </div>
+                <span className={`text-[10px] font-semibold whitespace-nowrap ${
+                  done ? "text-emerald-600" : active ? "text-amber-700" : "text-gray-400"
+                }`}>
+                  {stage.label}
+                </span>
+              </div>
+              {!isLast && (
+                <div className={`flex-1 h-0.5 mb-5 mx-1 rounded-full transition-all ${
+                  i < currentIdx ? "bg-emerald-300" : "bg-gray-200"
+                }`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progress bar */}
+      {task.progress > 0 && (
+        <div className="mt-3 pt-3 border-t border-amber-200/60">
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-[10px] text-amber-700/70">Progress keseluruhan</span>
+            <span className="text-[11px] font-bold text-amber-700">{task.progress}%</span>
+          </div>
+          <div className="w-full bg-amber-100 rounded-full h-1.5">
+            <div
+              className="h-1.5 rounded-full bg-amber-500 transition-all duration-700"
+              style={{ width: `${task.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TimelineStep({
   icon: Icon, label, time, done, active, dim,
@@ -50,7 +131,23 @@ function TimelineStep({
 }
 
 function OrderDetailSheet({ order, onClose }: { order: Order; onClose: () => void }) {
+  const [task, setTask] = useState<ProductionTask | null>(null);
+  const [taskLoading, setTaskLoading] = useState(false);
   const unitPrice = order.qty > 0 ? order.total / order.qty : 0;
+
+  useEffect(() => {
+    if (order.status !== "produksi") return;
+    setTaskLoading(true);
+    supabase
+      .from("production_tasks")
+      .select("id, stage, progress")
+      .eq("order_id", order.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setTask(data as ProductionTask);
+        setTaskLoading(false);
+      });
+  }, [order.id, order.status]);
 
   const timeline = [
     {
@@ -149,10 +246,25 @@ function OrderDetailSheet({ order, onClose }: { order: Order; onClose: () => voi
             <p className="text-2xl font-display font-bold text-teal-700">{formatRupiah(order.total)}</p>
           </div>
 
+          {/* Tahap Produksi — hanya tampil jika status produksi */}
+          {order.status === "produksi" && (
+            taskLoading ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Memuat info produksi...
+              </div>
+            ) : task ? (
+              <ProductionStages task={task} />
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+                <p className="text-xs text-amber-700">Pesanan sedang dalam antrian produksi.</p>
+              </div>
+            )
+          )}
+
           {/* Progress */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Progress</h4>
+              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status Keseluruhan</h4>
               <span className="text-xs font-medium text-gray-600">{STATUS_LABEL[order.status]}</span>
             </div>
             <ProgressBar status={order.status} />

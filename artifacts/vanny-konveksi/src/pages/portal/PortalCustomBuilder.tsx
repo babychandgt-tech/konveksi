@@ -131,31 +131,83 @@ function GarmentDefs({ uid, light }: { uid: string; light: boolean }) {
 
 function SleeveSVG({ fill, side, uid = "sl" }: { fill: string; side: "sleeve-l" | "sleeve-r"; uid?: string }) {
   const light = isLight(fill);
-  const b = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
-  // Sleeve laid flat — portrait: top=shoulder area, bottom=cuff
-  const path = "M 44,28 Q 22,26 22,56 L 22,232 Q 22,268 52,272 L 212,260 Q 238,256 238,226 L 238,58 Q 238,26 212,24 L 64,24 Z";
+  const b     = light ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.42)";
+  const seam  = light ? "rgba(0,0,0,0.24)" : "rgba(0,0,0,0.5)";
+
+  // ── Realistic sleeve pattern (pola lengan), portrait ──────────
+  // Sleeve cap (busur bahu) curves up to peak at y≈11, then down.
+  // LEFT sleeve: underarm side at LEFT (drops to y≈108), shoulder at RIGHT (y≈70).
+  // RIGHT sleeve: mirrored via SVG transform.
+  const body =
+    "M 30,108 " +                            // underarm point (lower)
+    "C 26,84 34,56 56,38 " +                 // left cap: underarm → shoulder curve
+    "C 78,22 105,12 130,11 " +               // cap left half rising to peak
+    "C 155,12 182,22 204,38 " +              // cap right half
+    "C 226,56 234,84 230,70 " +              // shoulder side (higher than underarm)
+    "L 220,255 " +                           // right body edge → cuff
+    "Q 130,270 40,255 " +                    // cuff curve
+    "Q 28,192 30,108 Z";                     // underarm seam back up
+
+  // sleeve cap arc used for the dashed seam guide
+  const capArc =
+    "M 30,108 C 26,84 34,56 56,38 C 78,22 105,12 130,11 " +
+    "C 155,12 182,22 204,38 C 226,56 234,84 230,70";
+
+  // mirror for right sleeve (flip around x=130 centre)
+  const flip = side === "sleeve-r" ? "translate(260,0) scale(-1,1)" : undefined;
+
   return (
     <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
       <GarmentDefs uid={uid} light={light} />
-      <ellipse cx="130" cy="288" rx="90" ry="6" fill="rgba(0,0,0,0.07)" />
-      <path filter={`url(#${uid}sh)`} d={path} fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
-      <path d={path} fill={`url(#${uid}sg)`} />
-      <path d={path} fill={`url(#${uid}hg)`} />
-      {/* Shoulder seam (top, dashed) */}
-      <line x1="48" y1="24" x2="210" y2="24" stroke={b} strokeWidth="1.2" strokeDasharray="5,3" opacity="0.7" />
-      {/* Armhole seam (left curved edge, dashed) */}
-      <path d="M 44,28 Q 22,26 22,56 L 22,232 Q 22,268 52,272"
-        fill="none" stroke={b} strokeWidth="1.5" strokeDasharray="5,3" opacity="0.6" />
-      {/* Cuff hem (bottom, solid) */}
-      <line x1="52" y1="272" x2="212" y2="260" stroke={b} strokeWidth="2" strokeLinecap="round" opacity="0.9" />
-      {/* Center fold crease (subtle) */}
-      <line x1="26" y1="148" x2="234" y2="148"
-        stroke={light ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.06)"}
-        strokeWidth="1.5" strokeDasharray="6,4" />
-      {/* Sleeve label */}
-      <text x="130" y="160" textAnchor="middle" fontSize="12"
+
+      {/* drop shadow ellipse */}
+      <ellipse cx="130" cy="278" rx="92" ry="6" fill="rgba(0,0,0,0.07)" />
+
+      <g transform={flip}>
+        {/* filled sleeve body */}
+        <path filter={`url(#${uid}sh)`} d={body} fill={fill} stroke={b}
+          strokeWidth="1.3" strokeLinejoin="round" />
+        <path d={body} fill={`url(#${uid}sg)`} />
+        <path d={body} fill={`url(#${uid}hg)`} />
+
+        {/* ── seam guides (like real pattern paper) ── */}
+
+        {/* 1. Sleeve cap seam (dashed arc — the busur jahit) */}
+        <path d={capArc} fill="none" stroke={seam}
+          strokeWidth="1.3" strokeDasharray="5,3" opacity="0.65" />
+
+        {/* 2. Notch tick at cap peak — standard tailoring mark */}
+        <line x1="130" y1="11" x2="130" y2="26"
+          stroke={seam} strokeWidth="2" strokeLinecap="round" opacity="0.75" />
+
+        {/* 3. Underarm seam (left side, dashed) */}
+        <path d="M 30,108 Q 28,192 40,255" fill="none" stroke={seam}
+          strokeWidth="1.1" strokeDasharray="4,3" opacity="0.5" />
+
+        {/* 4. Cuff / hem line (solid) */}
+        <path d="M 40,255 Q 130,270 220,255" fill="none" stroke={seam}
+          strokeWidth="2.2" strokeLinecap="round" />
+
+        {/* 5. Grain line — centre dashed vertical (standard on pattern pieces) */}
+        <line x1="130" y1="30" x2="130" y2="248"
+          stroke={light ? "rgba(0,0,0,0.09)" : "rgba(255,255,255,0.09)"}
+          strokeWidth="1" strokeDasharray="8,5" />
+        {/* arrowheads on grain line */}
+        <polyline points="124,42 130,30 136,42"
+          fill="none" stroke={light ? "rgba(0,0,0,0.13)" : "rgba(255,255,255,0.13)"}
+          strokeWidth="1" strokeLinejoin="round" />
+        <polyline points="124,236 130,248 136,236"
+          fill="none" stroke={light ? "rgba(0,0,0,0.13)" : "rgba(255,255,255,0.13)"}
+          strokeWidth="1" strokeLinejoin="round" />
+
+        {/* 6. Underarm notch dot */}
+        <circle cx="30" cy="108" r="3.5" fill={seam} opacity="0.45" />
+      </g>
+
+      {/* label (outside <g> so it doesn't flip) */}
+      <text x="130" y="182" textAnchor="middle" fontSize="11"
         fontFamily="Inter, system-ui, sans-serif"
-        fill={light ? "rgba(0,0,0,0.18)" : "rgba(255,255,255,0.2)"}>
+        fill={light ? "rgba(0,0,0,0.16)" : "rgba(255,255,255,0.18)"}>
         {side === "sleeve-l" ? "Lengan Kiri" : "Lengan Kanan"}
       </text>
     </svg>

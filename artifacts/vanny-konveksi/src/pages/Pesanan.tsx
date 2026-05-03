@@ -153,7 +153,31 @@ export default function Pesanan() {
     toast({ title: "Status diperbarui", description: `${selectedOrder.id} → ${STATUS_CONFIG[newStatus].label}` });
     const updated = { ...selectedOrder, status: newStatus };
     setSelectedOrder(updated);
-    if (newStatus === "produksi") setEstimasiInput(selectedOrder.deadline ?? "");
+    if (newStatus === "produksi") {
+      setEstimasiInput(selectedOrder.deadline ?? "");
+      // Cek apakah sudah ada task produksi untuk order ini
+      const { data: existing } = await supabase
+        .from("production_tasks")
+        .select("id")
+        .eq("order_id", selectedOrder.id)
+        .maybeSingle();
+      if (!existing) {
+        const { error: taskError } = await supabase.from("production_tasks").insert({
+          order_id: selectedOrder.id,
+          order_customer: selectedOrder.customer_name,
+          order_desc: `${selectedOrder.product} — ${selectedOrder.qty} pcs`,
+          stage: "antrian",
+          progress: 0,
+          deadline: selectedOrder.deadline ?? null,
+          assigned_initials: [],
+        });
+        if (taskError) {
+          toast({ title: "Gagal buat task produksi", description: taskError.message, variant: "destructive" });
+        } else {
+          toast({ title: "Task produksi dibuat", description: "Pesanan masuk antrian produksi." });
+        }
+      }
+    }
     fetchOrders();
   };
 

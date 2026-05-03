@@ -103,12 +103,20 @@ export default function PortalCheckout({ cartItems, profile, onSuccess, setSecti
 
       window.snap.pay(token, {
         onSuccess: async () => {
-          await createOrders(orderId);
-          onSuccess();
+          try {
+            await createOrders(orderId);
+            onSuccess();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Pembayaran berhasil tapi pesanan gagal disimpan. Hubungi admin.");
+          }
         },
         onPending: async () => {
-          await createOrders(orderId);
-          onSuccess();
+          try {
+            await createOrders(orderId);
+            onSuccess();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Pembayaran pending tapi pesanan gagal disimpan. Hubungi admin.");
+          }
         },
         onError: () => setError("Pembayaran gagal. Silakan coba lagi."),
         onClose: () => {},
@@ -125,7 +133,7 @@ export default function PortalCheckout({ cartItems, profile, onSuccess, setSecti
     const deadlineStr = deadline.toISOString().split("T")[0];
 
     for (const item of cartItems) {
-      await supabase.from("orders").insert({
+      const { error } = await supabase.from("orders").insert({
         id: `${orderId}-${item.id.slice(-6)}`,
         customer_id: profile?.id ?? "",
         customer_name: form.name,
@@ -135,6 +143,10 @@ export default function PortalCheckout({ cartItems, profile, onSuccess, setSecti
         status: "baru",
         deadline: deadlineStr,
       });
+      if (error) {
+        console.error("Gagal simpan pesanan:", error);
+        throw new Error(`Gagal menyimpan pesanan: ${error.message}`);
+      }
     }
   };
 

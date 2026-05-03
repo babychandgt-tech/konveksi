@@ -21,6 +21,7 @@ interface TextEl {
 interface BuilderState {
   garment: GarmentId; color: string; printMethod: PrintMethod;
   texts: TextEl[]; logoDataUrl: string | null; logoSide: PreviewSide;
+  logoX: number; logoY: number; logoSize: number;
   sizeBreakdown: Record<string, number>;
 }
 
@@ -68,7 +69,7 @@ const TEXT_PRESETS: { id: string; label: string; side: PreviewSide; x: number; y
 
 const DEFAULT_STATE: BuilderState = {
   garment: "kaos", color: "#1e3a5f", printMethod: "sablon",
-  texts: [], logoDataUrl: null, logoSide: "front",
+  texts: [], logoDataUrl: null, logoSide: "front", logoX: 50, logoY: 42, logoSize: 80,
   sizeBreakdown: { S: 0, M: 0, L: 0, XL: 0 },
 };
 
@@ -334,12 +335,15 @@ const GARMENT_SVG: Record<GarmentId, React.FC<{ fill: string; uid?: string; side
 };
 
 /* ─── Preview Panel ──────────────────────────────────────── */
+const LOGO_DRAG_ID = "__logo__";
+
 function ShirtPreview({
-  state, side, onChangeSide, onUpdateText,
+  state, side, onChangeSide, onUpdateText, onUpdateLogo,
 }: {
   state: BuilderState; side: PreviewSide;
   onChangeSide: (s: PreviewSide) => void;
   onUpdateText?: (id: string, patch: Partial<TextEl>) => void;
+  onUpdateLogo?: (patch: { x: number; y: number }) => void;
 }) {
   const GarmentComp  = GARMENT_SVG[state.garment];
   const visibleTexts = state.texts.filter(t => t.side === side);
@@ -357,10 +361,15 @@ function ShirtPreview({
   };
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragging || !onUpdateText) return;
+    if (!dragging) return;
     const pct = getPct(e);
-    if (pct) onUpdateText(dragging, pct);
-  }, [dragging, onUpdateText]);
+    if (!pct) return;
+    if (dragging === LOGO_DRAG_ID) {
+      onUpdateLogo?.(pct);
+    } else {
+      onUpdateText?.(dragging, pct);
+    }
+  }, [dragging, onUpdateText, onUpdateLogo]);
 
   const stopDrag = () => setDragging(null);
 
@@ -438,11 +447,41 @@ function ShirtPreview({
               </div>
             ))}
 
-            {/* Logo */}
+            {/* Logo — draggable */}
             {showLogo && (
-              <div className="absolute pointer-events-none" style={{ top: "42%", left: "50%", transform: "translate(-50%,-50%)" }}>
-                <img src={state.logoDataUrl!} alt="logo"
-                  className="w-20 h-20 object-contain" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }} />
+              <div
+                className="absolute"
+                style={{
+                  left: `${state.logoX}%`,
+                  top: `${state.logoY}%`,
+                  transform: "translate(-50%,-50%)",
+                  cursor: onUpdateLogo ? (dragging === LOGO_DRAG_ID ? "grabbing" : "grab") : "default",
+                  outline: onUpdateLogo
+                    ? dragging === LOGO_DRAG_ID
+                      ? "1.5px dashed rgba(99,102,241,0.7)"
+                      : "1.5px dashed rgba(99,102,241,0.3)"
+                    : "none",
+                  borderRadius: 6,
+                  padding: 2,
+                }}
+                onMouseDown={e => {
+                  if (!onUpdateLogo) return;
+                  e.preventDefault();
+                  setDragging(LOGO_DRAG_ID);
+                }}
+              >
+                <img
+                  src={state.logoDataUrl!}
+                  alt="logo"
+                  style={{
+                    width: state.logoSize,
+                    height: state.logoSize,
+                    objectFit: "contain",
+                    filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+                    display: "block",
+                    pointerEvents: "none",
+                  }}
+                />
               </div>
             )}
 
@@ -450,7 +489,7 @@ function ShirtPreview({
             {visibleTexts.length === 0 && !showLogo && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <span className="text-[11px] font-medium text-gray-400 bg-white/60 px-3 py-1 rounded-full shadow-sm border border-white/80">
-                  {onUpdateText ? "Tambah teks, lalu drag di sini" : "Desain muncul di sini"}
+                  {onUpdateText ? "Tambah teks / logo, lalu drag di sini" : "Desain muncul di sini"}
                 </span>
               </div>
             )}
@@ -782,23 +821,38 @@ function Step2({
           </div>
 
           {state.logoDataUrl ? (
-            <div className="flex items-center gap-3">
-              <img src={state.logoDataUrl} alt="logo" className="w-16 h-16 object-contain rounded-lg border border-gray-200 bg-white p-1" />
-              <div className="flex-1">
-                <div className="flex gap-2 mb-2">
-                  {(["front","back"] as PreviewSide[]).map(s => (
-                    <button key={s} type="button" onClick={() => set({ logoSide: s })}
-                      className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
-                        state.logoSide === s ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-600 border-gray-200"
-                      }`}>
-                      {s === "front" ? "Depan" : "Belakang"}
-                    </button>
-                  ))}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <img src={state.logoDataUrl} alt="logo" className="w-14 h-14 object-contain rounded-lg border border-gray-200 bg-white p-1 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[11px] text-gray-500 mb-1.5">Tampilkan di sisi</p>
+                  <div className="flex gap-2 mb-2">
+                    {(["front","back"] as PreviewSide[]).map(s => (
+                      <button key={s} type="button" onClick={() => set({ logoSide: s })}
+                        className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
+                          state.logoSide === s ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-600 border-gray-200"
+                        }`}>
+                        {s === "front" ? "Depan" : "Belakang"}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => set({ logoDataUrl: null, logoX: 50, logoY: 42 })}
+                    className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
+                    <X className="w-3 h-3" /> Hapus logo
+                  </button>
                 </div>
-                <button type="button" onClick={() => set({ logoDataUrl: null })}
-                  className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1">
-                  <X className="w-3 h-3" /> Hapus logo
-                </button>
+              </div>
+              {/* Size slider */}
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-[11px] text-gray-500">Ukuran logo</span>
+                  <span className="text-[11px] font-semibold text-gray-700">{state.logoSize}px</span>
+                </div>
+                <input type="range" min={32} max={160} step={4}
+                  value={state.logoSize}
+                  onChange={e => set({ logoSize: Number(e.target.value) })}
+                  className="w-full h-1.5 rounded-full accent-teal-600 cursor-pointer" />
+                <p className="text-[10px] text-gray-400 mt-1">Drag logo di canvas untuk pindahkan posisi</p>
               </div>
             </div>
           ) : (
@@ -937,6 +991,10 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
     }));
   };
 
+  const updateLogo = (patch: { x: number; y: number }) => {
+    set({ logoX: patch.x, logoY: patch.y });
+  };
+
   const totalQty   = Object.values(state.sizeBreakdown).reduce((a, b) => a + b, 0);
   const garment    = GARMENTS.find(g => g.id === state.garment)!;
   const method     = PRINT_METHODS.find(m => m.id === state.printMethod)!;
@@ -1040,7 +1098,8 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
         <div className="order-2 lg:order-1">
           <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-100 sticky top-4">
             <ShirtPreview state={state} side={previewSide} onChangeSide={setPreviewSide}
-              onUpdateText={step === 2 ? updateText : undefined} />
+              onUpdateText={step === 2 ? updateText : undefined}
+              onUpdateLogo={step === 2 ? updateLogo : undefined} />
 
             {/* Quick summary */}
             <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 gap-2 text-xs">

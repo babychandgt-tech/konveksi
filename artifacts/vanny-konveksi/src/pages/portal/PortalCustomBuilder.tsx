@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronRight, ChevronLeft, Check, Plus, Minus, Upload,
   ShoppingCart, RotateCcw, Type, ImageIcon, X, Wand2,
-  Palette, Layers, Scissors, Pencil, Move,
+  Palette, Layers, Scissors, Pencil, Move, Hand, Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CartItem, Product, formatRupiah } from "./types";
@@ -348,43 +348,141 @@ function ShirtPreview({
   const GarmentComp  = GARMENT_SVG[state.garment];
   const visibleTexts = state.texts.filter(t => t.side === side);
   const showLogo     = state.logoDataUrl && state.logoSide === side;
-  const canvasRef    = useRef<HTMLDivElement>(null);
+
+  // zoom / pan local state
+  const [zoom, setZoom]   = useState(1);
+  const [panX, setPanX]   = useState(0);
+  const [panY, setPanY]   = useState(0);
+  const [mode, setMode]   = useState<"select" | "hand">("select");
+  const [panning, setPanning] = useState(false);
+  const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
+
+  // element dragging
   const [dragging, setDragging] = useState<string | null>(null);
 
+  const outerRef   = useRef<HTMLDivElement>(null); // clip container (unchanged size)
+  const contentRef = useRef<HTMLDivElement>(null); // scaled+translated inner
+
+  /* ── reset zoom ── */
+  const resetZoom = () => { setZoom(1); setPanX(0); setPanY(0); };
+
+  /* ── zoom step ── */
+  const doZoom = (delta: number) => {
+    setZoom(z => {
+      const next = Math.min(4, Math.max(1, +(z + delta).toFixed(2)));
+      if (next === 1) { setPanX(0); setPanY(0); }
+      return next;
+    });
+  };
+
+  /* ── clamp pan so content never drifts too far out ── */
+  const clampPan = useCallback((px: number, py: number, z: number) => {
+    const maxShift = 140 * (z - 1) / z;
+    return {
+      px: Math.max(-maxShift, Math.min(maxShift, px)),
+      py: Math.max(-maxShift, Math.min(maxShift, py)),
+    };
+  }, []);
+
+  /* ── get % position relative to scaled content ── */
   const getPct = (e: React.MouseEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
+    const rect = contentRef.current?.getBoundingClientRect();
     if (!rect) return null;
     return {
-      x: Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100)),
-      y: Math.max(5, Math.min(95, ((e.clientY - rect.top)  / rect.height) * 100)),
+      x: Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width)  * 100)),
+      y: Math.max(2, Math.min(98, ((e.clientY - rect.top)  / rect.height) * 100)),
     };
   };
 
+  /* ── wheel zoom ── */
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    doZoom(e.deltaY < 0 ? 0.12 : -0.12);
+  };
+
+  /* ── unified mouse down ── */
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (mode === "hand") {
+      e.preventDefault();
+      setPanning(true);
+      panStart.current = { mx: e.clientX, my: e.clientY, px: panX, py: panY };
+    }
+  };
+
+  /* ── mouse move ── */
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    // hand pan
+    if (mode === "hand" && panning && panStart.current) {
+      const rawPx = panStart.current.px + (e.clientX - panStart.current.mx) / zoom;
+      const rawPy = panStart.current.py + (e.clientY - panStart.current.my) / zoom;
+      const { px, py } = clampPan(rawPx, rawPy, zoom);
+      setPanX(px); setPanY(py);
+      return;
+    }
+    // element drag
     if (!dragging) return;
     const pct = getPct(e);
     if (!pct) return;
-    if (dragging === LOGO_DRAG_ID) {
-      onUpdateLogo?.(pct);
-    } else {
-      onUpdateText?.(dragging, pct);
-    }
-  }, [dragging, onUpdateText, onUpdateLogo]);
+    if (dragging === LOGO_DRAG_ID) onUpdateLogo?.(pct);
+    else onUpdateText?.(dragging, pct);
+  }, [mode, panning, dragging, zoom, panX, panY, onUpdateText, onUpdateLogo, clampPan]);
 
-  const stopDrag = () => setDragging(null);
+  const stopAll = () => { setDragging(null); setPanning(false); panStart.current = null; };
+
+  /* ── cursor logic ── */
+  const outerCursor = mode === "hand"
+    ? (panning ? "grabbing" : "grab")
+    : dragging ? "grabbing" : "default";
+
+  const isZoomed = zoom > 1.01;
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* Side toggle */}
-      <div className="flex bg-white/60 border border-gray-200 rounded-xl p-1 gap-1 shadow-sm">
-        {(["front","back"] as PreviewSide[]).map(s => (
-          <button key={s} type="button" onClick={() => onChangeSide(s)}
-            className={`px-5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-              side === s ? "bg-white shadow text-gray-900" : "text-gray-400 hover:text-gray-600"
-            }`}>
-            {s === "front" ? "Depan" : "Belakang"}
+      {/* Top row: side toggle + zoom controls */}
+      <div className="flex items-center justify-between w-full" style={{ maxWidth: 360 }}>
+        {/* Side toggle */}
+        <div className="flex bg-white/60 border border-gray-200 rounded-xl p-1 gap-1 shadow-sm">
+          {(["front","back"] as PreviewSide[]).map(s => (
+            <button key={s} type="button" onClick={() => onChangeSide(s)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                side === s ? "bg-white shadow text-gray-900" : "text-gray-400 hover:text-gray-600"
+              }`}>
+              {s === "front" ? "Depan" : "Belakang"}
+            </button>
+          ))}
+        </div>
+
+        {/* Zoom controls */}
+        <div className="flex items-center gap-1 bg-white/70 border border-gray-200 rounded-xl px-1.5 py-1 shadow-sm">
+          {/* Hand / select toggle — only show when zoomed */}
+          {isZoomed && (
+            <button type="button"
+              title={mode === "hand" ? "Mode pilih" : "Mode geser"}
+              onClick={() => setMode(m => m === "hand" ? "select" : "hand")}
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                mode === "hand" ? "bg-teal-600 text-white" : "text-gray-500 hover:bg-gray-100"
+              }`}>
+              <Hand className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button type="button" onClick={() => doZoom(-0.25)} title="Zoom out"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-all text-base font-bold leading-none">
+            −
           </button>
-        ))}
+          <span className="text-[11px] font-semibold text-gray-600 min-w-[34px] text-center select-none">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button type="button" onClick={() => doZoom(0.25)} title="Zoom in"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-all text-base font-bold leading-none">
+            +
+          </button>
+          {isZoomed && (
+            <button type="button" onClick={() => { resetZoom(); setMode("select"); }} title="Reset zoom"
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all">
+              <Minimize2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Canvas */}
@@ -401,114 +499,117 @@ function ShirtPreview({
             pointerEvents: "none",
           }} />
 
-          {/* Draggable canvas area */}
+          {/* Outer clip + event capture */}
           <div
-            ref={canvasRef}
-            className="relative"
-            style={{ cursor: dragging ? "grabbing" : "default", userSelect: "none" }}
+            ref={outerRef}
+            style={{ overflow: "hidden", cursor: outerCursor, userSelect: "none", position: "relative" }}
+            onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
-            onMouseUp={stopDrag}
-            onMouseLeave={stopDrag}
+            onMouseUp={stopAll}
+            onMouseLeave={stopAll}
+            onWheel={handleWheel}
           >
-            <GarmentComp fill={state.color} uid={`prev-${state.garment}-${side}`} side={side} />
+            {/* Scaled + translated content */}
+            <div
+              ref={contentRef}
+              style={{
+                transform: `scale(${zoom}) translate(${panX}px, ${panY}px)`,
+                transformOrigin: "50% 50%",
+                transition: panning || dragging ? "none" : "transform 0.15s ease",
+                position: "relative",
+              }}
+            >
+              <GarmentComp fill={state.color} uid={`prev-${state.garment}-${side}`} side={side} />
 
-            {/* Text overlays — draggable */}
-            {visibleTexts.map(t => (
-              <div
-                key={t.id}
-                className="absolute"
-                style={{
-                  left: `${t.x}%`, top: `${t.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  cursor: onUpdateText ? (dragging === t.id ? "grabbing" : "grab") : "default",
-                  color: t.color,
-                  fontSize: t.size,
-                  fontWeight: t.bold ? 700 : 500,
-                  fontFamily: "'Inter', system-ui, sans-serif",
-                  textAlign: "center",
-                  whiteSpace: "nowrap",
-                  letterSpacing: "0.04em",
-                  textShadow: isLight(state.color) ? "0 1px 2px rgba(0,0,0,0.25)" : "0 1px 3px rgba(0,0,0,0.5)",
-                  padding: "3px 6px",
-                  borderRadius: 5,
-                  outline: onUpdateText
-                    ? dragging === t.id
-                      ? "1.5px dashed rgba(99,102,241,0.7)"
-                      : "1.5px dashed rgba(99,102,241,0.3)"
-                    : "none",
-                }}
-                onMouseDown={e => {
-                  if (!onUpdateText) return;
-                  e.preventDefault();
-                  setDragging(t.id);
-                }}
-              >
-                {t.text}
-              </div>
-            ))}
-
-            {/* Logo — draggable */}
-            {showLogo && (
-              <div
-                className="absolute"
-                style={{
-                  left: `${state.logoX}%`,
-                  top: `${state.logoY}%`,
-                  transform: "translate(-50%,-50%)",
-                  cursor: onUpdateLogo ? (dragging === LOGO_DRAG_ID ? "grabbing" : "grab") : "default",
-                  outline: onUpdateLogo
-                    ? dragging === LOGO_DRAG_ID
-                      ? "1.5px dashed rgba(99,102,241,0.7)"
-                      : "1.5px dashed rgba(99,102,241,0.3)"
-                    : "none",
-                  borderRadius: 6,
-                  padding: 2,
-                }}
-                onMouseDown={e => {
-                  if (!onUpdateLogo) return;
-                  e.preventDefault();
-                  setDragging(LOGO_DRAG_ID);
-                }}
-              >
-                <img
-                  src={state.logoDataUrl!}
-                  alt="logo"
+              {/* Text overlays */}
+              {visibleTexts.map(t => (
+                <div key={t.id} className="absolute"
                   style={{
-                    width: state.logoSize,
-                    height: state.logoSize,
-                    objectFit: "contain",
-                    filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
-                    display: "block",
-                    pointerEvents: "none",
+                    left: `${t.x}%`, top: `${t.y}%`,
+                    transform: "translate(-50%, -50%)",
+                    cursor: (onUpdateText && mode === "select") ? (dragging === t.id ? "grabbing" : "grab") : "inherit",
+                    color: t.color, fontSize: t.size,
+                    fontWeight: t.bold ? 700 : 500,
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    textAlign: "center", whiteSpace: "nowrap", letterSpacing: "0.04em",
+                    textShadow: isLight(state.color) ? "0 1px 2px rgba(0,0,0,0.25)" : "0 1px 3px rgba(0,0,0,0.5)",
+                    padding: "3px 6px", borderRadius: 5,
+                    outline: (onUpdateText && mode === "select")
+                      ? dragging === t.id ? "1.5px dashed rgba(99,102,241,0.7)" : "1.5px dashed rgba(99,102,241,0.3)"
+                      : "none",
                   }}
-                />
-              </div>
-            )}
+                  onMouseDown={e => {
+                    if (!onUpdateText || mode !== "select") return;
+                    e.preventDefault(); e.stopPropagation();
+                    setDragging(t.id);
+                  }}>
+                  {t.text}
+                </div>
+              ))}
 
-            {/* Empty state */}
-            {visibleTexts.length === 0 && !showLogo && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-[11px] font-medium text-gray-400 bg-white/60 px-3 py-1 rounded-full shadow-sm border border-white/80">
-                  {onUpdateText ? "Tambah teks / logo, lalu drag di sini" : "Desain muncul di sini"}
-                </span>
-              </div>
-            )}
+              {/* Logo overlay */}
+              {showLogo && (
+                <div className="absolute"
+                  style={{
+                    left: `${state.logoX}%`, top: `${state.logoY}%`,
+                    transform: "translate(-50%,-50%)",
+                    cursor: (onUpdateLogo && mode === "select") ? (dragging === LOGO_DRAG_ID ? "grabbing" : "grab") : "inherit",
+                    outline: (onUpdateLogo && mode === "select")
+                      ? dragging === LOGO_DRAG_ID ? "1.5px dashed rgba(99,102,241,0.7)" : "1.5px dashed rgba(99,102,241,0.3)"
+                      : "none",
+                    borderRadius: 6, padding: 2,
+                  }}
+                  onMouseDown={e => {
+                    if (!onUpdateLogo || mode !== "select") return;
+                    e.preventDefault(); e.stopPropagation();
+                    setDragging(LOGO_DRAG_ID);
+                  }}>
+                  <img src={state.logoDataUrl!} alt="logo"
+                    style={{
+                      width: state.logoSize, height: state.logoSize,
+                      objectFit: "contain",
+                      filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+                      display: "block", pointerEvents: "none",
+                    }} />
+                </div>
+              )}
+
+              {/* Empty state */}
+              {visibleTexts.length === 0 && !showLogo && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="text-[11px] font-medium text-gray-400 bg-white/60 px-3 py-1 rounded-full shadow-sm border border-white/80">
+                    {onUpdateText ? "Tambah teks / logo, lalu drag di sini" : "Desain muncul di sini"}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Zoom hint badge */}
+        {isZoomed && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none">
+            <span className="text-[10px] font-medium text-gray-500 bg-white/80 border border-gray-200 px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1">
+              {mode === "hand" ? <><Hand className="w-3 h-3" /> Geser canvas</> : <><Move className="w-3 h-3" /> Mode pilih — aktifkan hand untuk geser</>}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Drag hint */}
-      {onUpdateText && visibleTexts.length > 0 && (
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-          <Move className="w-3 h-3" />
-          <span>Drag teks di canvas untuk menggeser posisi</span>
-        </div>
-      )}
+      {/* Hint row */}
+      <div className="flex items-center justify-between w-full" style={{ maxWidth: 360 }}>
+        {onUpdateText && (visibleTexts.length > 0 || showLogo) ? (
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+            <Move className="w-3 h-3" />
+            <span>Scroll untuk zoom · drag teks/logo untuk pindah posisi</span>
+          </div>
+        ) : <div />}
 
-      {/* Color info */}
-      <div className="flex items-center gap-2 text-xs text-gray-500">
-        <div className="w-4 h-4 rounded-full border border-gray-300 shadow-sm" style={{ background: state.color }} />
-        <span>{FABRIC_COLORS.find(c => c.hex === state.color)?.name ?? "Custom"}</span>
+        {/* Color info */}
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="w-4 h-4 rounded-full border border-gray-300 shadow-sm flex-shrink-0" style={{ background: state.color }} />
+          <span>{FABRIC_COLORS.find(c => c.hex === state.color)?.name ?? "Custom"}</span>
+        </div>
       </div>
     </div>
   );

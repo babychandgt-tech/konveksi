@@ -4,9 +4,10 @@ export interface Order {
   qty: number;
   total: number;
   status: "baru" | "produksi" | "selesai" | "batal";
-  deadline: string;
+  deadline: string | null;
   created_at: string;
   customer_name?: string;
+  customer_id?: string;
   notes?: string;
 }
 

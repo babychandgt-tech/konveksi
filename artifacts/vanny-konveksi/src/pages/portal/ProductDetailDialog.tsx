@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -15,17 +15,22 @@ interface Props {
 
 export default function ProductDetailDialog({ product, imageIdx, setImageIdx, onClose, onAddToCart }: Props) {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [qty, setQty] = useState(1);
+  const [qty, setQty] = useState(product?.min_order ?? 1);
   const [notes, setNotes] = useState("");
   const [added, setAdded] = useState(false);
+
+  useEffect(() => {
+    if (product) {
+      setQty(product.min_order ?? 1);
+      setSelectedSize(null);
+      setNotes("");
+      setAdded(false);
+    }
+  }, [product?.id]);
 
   const handleOpen = (open: boolean) => {
     if (!open) {
       onClose();
-      setSelectedSize(null);
-      setQty(1);
-      setNotes("");
-      setAdded(false);
     }
   };
 
@@ -205,8 +210,9 @@ export default function ProductDetailDialog({ product, imageIdx, setImageIdx, on
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
+                      disabled={qty <= minQty}
                       onClick={() => setQty((q) => Math.max(minQty, q - 1))}
-                      className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                      className="w-9 h-9 rounded-lg border flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed border-gray-200 hover:enabled:bg-gray-100"
                     >
                       <Minus className="h-4 w-4 text-gray-600" />
                     </button>

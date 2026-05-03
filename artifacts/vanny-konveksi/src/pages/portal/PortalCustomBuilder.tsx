@@ -64,10 +64,14 @@ const PRINT_METHODS: { id: PrintMethod; label: string; desc: string; surcharge: 
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 const TEXT_PRESETS: { id: string; label: string; side: PreviewSide; x: number; y: number }[] = [
-  { id: "chest-left",   label: "Dada Kiri (Depan)",     side: "front", x: 38, y: 42 },
-  { id: "chest-center", label: "Tengah Depan",           side: "front", x: 50, y: 46 },
-  { id: "back-center",  label: "Tengah Belakang",        side: "back",  x: 50, y: 48 },
-  { id: "back-top",     label: "Leher Belakang (Kecil)", side: "back",  x: 50, y: 26 },
+  { id: "chest-left",    label: "Dada Kiri (Depan)",     side: "front", x: 38, y: 42 },
+  { id: "chest-center",  label: "Tengah Depan",           side: "front", x: 50, y: 46 },
+  { id: "back-center",   label: "Tengah Belakang",        side: "back",  x: 50, y: 48 },
+  { id: "back-top",      label: "Leher Belakang (Kecil)", side: "back",  x: 50, y: 26 },
+  { id: "sleeve-left-f", label: "Lengan Kiri (Depan)",   side: "front", x: 19, y: 44 },
+  { id: "sleeve-rgt-f",  label: "Lengan Kanan (Depan)",  side: "front", x: 81, y: 44 },
+  { id: "sleeve-left-b", label: "Lengan Kiri (Belakang)",side: "back",  x: 19, y: 44 },
+  { id: "sleeve-rgt-b",  label: "Lengan Kanan (Belakang)",side: "back", x: 81, y: 44 },
 ];
 
 const FONTS: { family: string; label: string }[] = [
@@ -1163,14 +1167,22 @@ function Step2({
               <div className="flex items-center gap-3">
                 <img src={state.logoDataUrl} alt="logo" className="w-14 h-14 object-contain rounded-lg border border-gray-200 bg-white p-1 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-[11px] text-gray-500 mb-1.5">Tampilkan di sisi</p>
-                  <div className="flex gap-2 mb-2">
-                    {(["front","back"] as PreviewSide[]).map(s => (
-                      <button key={s} type="button" onClick={() => set({ logoSide: s })}
-                        className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
-                          state.logoSide === s ? "bg-teal-600 text-white border-teal-600" : "bg-white text-gray-600 border-gray-200"
+                  <p className="text-[11px] text-gray-500 mb-1.5">Posisi cepat</p>
+                  <div className="grid grid-cols-2 gap-1 mb-2">
+                    {[
+                      { label: "Tengah Depan",   side: "front" as PreviewSide, x: 50, y: 42 },
+                      { label: "Tengah Belakang",side: "back"  as PreviewSide, x: 50, y: 42 },
+                      { label: "Lengan Kiri",    side: "front" as PreviewSide, x: 19, y: 44 },
+                      { label: "Lengan Kanan",   side: "front" as PreviewSide, x: 81, y: 44 },
+                    ].map(p => (
+                      <button key={p.label} type="button"
+                        onClick={() => { set({ logoSide: p.side, logoX: p.x, logoY: p.y }); setPreviewSide(p.side); }}
+                        className={`px-2 py-1 rounded-lg border text-[10px] font-medium transition-all text-left ${
+                          state.logoSide === p.side && Math.abs(state.logoX - p.x) < 4 && Math.abs(state.logoY - p.y) < 4
+                            ? "bg-teal-600 text-white border-teal-600"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-teal-300"
                         }`}>
-                        {s === "front" ? "Depan" : "Belakang"}
+                        {p.label}
                       </button>
                     ))}
                   </div>

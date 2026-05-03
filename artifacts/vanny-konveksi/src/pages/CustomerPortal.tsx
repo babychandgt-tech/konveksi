@@ -122,10 +122,10 @@ export default function CustomerPortal() {
     : menuItems.find((m) => m.id === section)?.label ?? "";
 
   return (
-    <div className="min-h-screen flex overflow-hidden font-sans bg-background">
+    <div className="h-screen flex overflow-hidden font-sans bg-background">
       {/* Sidebar Desktop */}
       <aside
-        className={`hidden lg:flex flex-col shrink-0 transition-all duration-300 ease-in-out ${collapsed ? "w-[68px]" : "w-[240px]"}`}
+        className={`hidden lg:flex flex-col shrink-0 transition-all duration-300 ease-in-out h-screen sticky top-0 ${collapsed ? "w-[68px]" : "w-[240px]"}`}
         style={{ backgroundColor: "#134e4a" }}
       >
         <PortalSidebar
@@ -137,7 +137,6 @@ export default function CustomerPortal() {
           initials={initials}
           fullName={profile?.full_name ?? "Pelanggan"}
           onLogout={logout}
-          cartItems={cartItems}
         />
       </aside>
 
@@ -166,7 +165,6 @@ export default function CustomerPortal() {
                 initials={initials}
                 fullName={profile?.full_name ?? "Pelanggan"}
                 onLogout={logout}
-                cartItems={cartItems}
               />
             </motion.aside>
           </>

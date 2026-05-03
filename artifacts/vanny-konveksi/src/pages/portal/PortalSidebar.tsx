@@ -1,6 +1,8 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Scissors, LogOut, ChevronRight, ShoppingCart } from "lucide-react";
-import { Section, CartItem, menuItems } from "./types";
+import { Scissors, LogOut, ChevronRight } from "lucide-react";
+import { Section, menuItems } from "./types";
+
+const sidebarMenuItems = menuItems.filter((m) => m.id !== "keranjang");
 
 interface Props {
   isMobile?: boolean;
@@ -12,18 +14,15 @@ interface Props {
   initials: string;
   fullName: string;
   onLogout: () => void;
-  cartItems?: CartItem[];
 }
 
 export default function PortalSidebar({
   isMobile = false, collapsed, setCollapsed, section, setSection,
-  setMobileOpen, initials, fullName, onLogout, cartItems = [],
+  setMobileOpen, initials, fullName, onLogout,
 }: Props) {
-  const cartCount = cartItems.reduce((sum, i) => sum + i.qty, 0);
-
   return (
     <>
-      <div className="h-[72px] flex items-center justify-between px-5 border-b border-white/10">
+      <div className="h-[72px] flex items-center justify-between px-5 border-b border-white/10 shrink-0">
         <div className={`flex items-center gap-3 transition-all duration-300 overflow-hidden ${collapsed && !isMobile ? "opacity-0 w-0" : "opacity-100 w-auto"}`}>
           <div className="w-8 h-8 rounded-lg bg-teal-400/20 flex items-center justify-center border border-teal-400/30 shrink-0">
             <Scissors className="w-4 h-4 text-teal-300" />
@@ -43,15 +42,14 @@ export default function PortalSidebar({
       </div>
 
       {(!collapsed || isMobile) && (
-        <div className="px-4 py-3 border-b border-white/10">
+        <div className="px-4 py-3 border-b border-white/10 shrink-0">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-300/50">Portal Pelanggan</p>
         </div>
       )}
 
       <div className="flex-1 py-4 overflow-y-auto flex flex-col gap-0.5 px-3">
-        {menuItems.map((item) => {
-          const active = section === item.id || (item.id === "keranjang" && section === "checkout");
-          const isCart = item.id === "keranjang";
+        {sidebarMenuItems.map((item) => {
+          const active = section === item.id;
           return (
             <button
               key={item.id}
@@ -61,28 +59,16 @@ export default function PortalSidebar({
               }`}
             >
               {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-teal-400 rounded-r-full" />}
-              <div className="relative flex-shrink-0">
-                <item.icon className={`w-[18px] h-[18px] ${active ? "text-teal-300" : "group-hover:text-teal-300"}`} />
-                {isCart && cartCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-orange-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
-                    {cartCount > 99 ? "99+" : cartCount}
-                  </span>
-                )}
-              </div>
+              <item.icon className={`w-[18px] h-[18px] shrink-0 ${active ? "text-teal-300" : "group-hover:text-teal-300"}`} />
               <span className={`text-sm font-medium whitespace-nowrap transition-all duration-300 flex-1 ${collapsed && !isMobile ? "opacity-0 w-0 overflow-hidden" : "opacity-100"}`}>
                 {item.label}
               </span>
-              {isCart && cartCount > 0 && (!collapsed || isMobile) && (
-                <span className="ml-auto bg-orange-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
-                  {cartCount}
-                </span>
-              )}
             </button>
           );
         })}
       </div>
 
-      <div className="p-3 border-t border-white/10">
+      <div className="p-3 border-t border-white/10 shrink-0">
         <div className={`flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors ${collapsed && !isMobile ? "justify-center" : ""}`}>
           <div className="relative shrink-0">
             <Avatar className="w-9 h-9 border-2 border-teal-400/30">

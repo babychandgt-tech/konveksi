@@ -79,276 +79,257 @@ function isLight(hex: string) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 155;
 }
 
-function KaosSVG({ fill, uid = "k" }: { fill: string; uid?: string }) {
+/* shared SVG defs helper */
+function GarmentDefs({ uid, light }: { uid: string; light: boolean }) {
+  return (
+    <defs>
+      <linearGradient id={`${uid}sg`} x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stopColor="rgba(0,0,0,0.18)" />
+        <stop offset="22%"  stopColor="rgba(0,0,0,0.03)" />
+        <stop offset="78%"  stopColor="rgba(0,0,0,0.03)" />
+        <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
+      </linearGradient>
+      <linearGradient id={`${uid}hg`} x1="0.3" y1="0" x2="0.7" y2="0.4">
+        <stop offset="0%"  stopColor={light ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.07)"} />
+        <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+      </linearGradient>
+      <filter id={`${uid}sh`} x="-15%" y="-8%" width="130%" height="130%">
+        <feDropShadow dx="0" dy="5" stdDeviation="9" floodColor="rgba(0,0,0,0.22)" />
+      </filter>
+    </defs>
+  );
+}
+
+function KaosSVG({ fill, uid = "k", side = "front" }: { fill: string; uid?: string; side?: "front" | "back" }) {
   const light = isLight(fill);
-  const borderColor = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
-  const collarShade = light ? "rgba(0,0,0,0.09)" : "rgba(0,0,0,0.32)";
+  const b = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
+  const shade = light ? "rgba(0,0,0,0.09)" : "rgba(0,0,0,0.32)";
+
+  const body = "M88,50 C70,50 46,60 32,78 L8,100 L38,120 C48,108 60,106 62,105 C62,105 60,175 59,258 Q130,272 201,258 C200,175 198,105 198,105 C200,106 212,108 222,120 L252,100 L228,78 C214,60 190,50 172,50 C162,40 148,35 130,34 C112,35 98,40 88,50 Z";
+
   return (
     <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <linearGradient id={`${uid}sg`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%"   stopColor="rgba(0,0,0,0.18)" />
-          <stop offset="22%"  stopColor="rgba(0,0,0,0.03)" />
-          <stop offset="78%"  stopColor="rgba(0,0,0,0.03)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
-        </linearGradient>
-        <linearGradient id={`${uid}hg`} x1="0.3" y1="0" x2="0.7" y2="0.4">
-          <stop offset="0%"  stopColor={light ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.07)"} />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
-        <filter id={`${uid}sh`} x="-15%" y="-8%" width="130%" height="130%">
-          <feDropShadow dx="0" dy="5" stdDeviation="9" floodColor="rgba(0,0,0,0.22)" />
-        </filter>
-      </defs>
-      {/* Ground shadow */}
+      <GarmentDefs uid={uid} light={light} />
       <ellipse cx="130" cy="290" rx="62" ry="5" fill="rgba(0,0,0,0.07)" />
-      {/* Main shirt body */}
-      <path filter={`url(#${uid}sh)`}
-        d="M88,50 C70,50 46,60 32,78 L8,100 L38,120 C48,108 60,106 62,105
-           C62,105 60,175 59,258 Q130,272 201,258 C200,175 198,105 198,105
-           C200,106 212,108 222,120 L252,100 L228,78
-           C214,60 190,50 172,50 C162,40 148,35 130,34 C112,35 98,40 88,50 Z"
-        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
-      {/* Side shading */}
-      <path d="M88,50 C70,50 46,60 32,78 L8,100 L38,120 C48,108 60,106 62,105
-               C62,105 60,175 59,258 Q130,272 201,258 C200,175 198,105 198,105
-               C200,106 212,108 222,120 L252,100 L228,78
-               C214,60 190,50 172,50 C162,40 148,35 130,34 C112,35 98,40 88,50 Z"
-        fill={`url(#${uid}sg)`} />
-      {/* Highlight */}
-      <path d="M88,50 C70,50 46,60 32,78 L8,100 L38,120 C48,108 60,106 62,105
-               C62,105 60,175 59,258 Q130,272 201,258 C200,175 198,105 198,105
-               C200,106 212,108 222,120 L252,100 L228,78
-               C214,60 190,50 172,50 C162,40 148,35 130,34 C112,35 98,40 88,50 Z"
-        fill={`url(#${uid}hg)`} />
-      {/* Collar */}
-      <path d="M88,50 C98,40 112,35 130,34 C148,35 162,40 172,50
-               C162,60 148,66 130,68 C112,66 98,60 88,50 Z"
-        fill={collarShade} stroke={borderColor} strokeWidth="1" />
-      {/* Sleeve crease lines */}
+      <path filter={`url(#${uid}sh)`} d={body} fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
+      <path d={body} fill={`url(#${uid}sg)`} />
+      <path d={body} fill={`url(#${uid}hg)`} />
+
+      {side === "front" ? (
+        <>
+          {/* Front collar */}
+          <path d="M88,50 C98,40 112,35 130,34 C148,35 162,40 172,50 C162,60 148,66 130,68 C112,66 98,60 88,50 Z"
+            fill={shade} stroke={b} strokeWidth="1" />
+        </>
+      ) : (
+        <>
+          {/* Back neckline — simple curved scoop */}
+          <path d="M100,44 C110,52 120,56 130,56 C140,56 150,52 160,44"
+            fill="none" stroke={b} strokeWidth="1.5" strokeLinecap="round" />
+          {/* Back center seam */}
+          <line x1="130" y1="56" x2="130" y2="258" stroke={b} strokeWidth="0.9" strokeDasharray="5,4" opacity="0.5" />
+          {/* Back shoulder seam */}
+          <path d="M88,50 C100,54 115,58 130,58 C145,58 160,54 172,50"
+            fill="none" stroke={b} strokeWidth="0.9" strokeLinecap="round" opacity="0.6" />
+          {/* Clothing tag */}
+          <rect x="122" y="60" width="16" height="10" rx="2" fill={shade} stroke={b} strokeWidth="0.8" />
+          <line x1="130" y1="60" x2="130" y2="70" stroke={b} strokeWidth="0.6" />
+        </>
+      )}
+
+      {/* Sleeve crease */}
       <path d="M32,78 C38,90 40,100 38,120" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="2" strokeLinecap="round" />
       <path d="M228,78 C222,90 220,100 222,120" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="2" strokeLinecap="round" />
-      {/* Bottom hem stitch */}
-      <path d="M68,257 Q130,270 192,257" fill="none" stroke={borderColor} strokeWidth="0.8" strokeDasharray="4,3" />
+      {/* Hem stitch */}
+      <path d="M68,257 Q130,270 192,257" fill="none" stroke={b} strokeWidth="0.8" strokeDasharray="4,3" />
     </svg>
   );
 }
 
-function PoloSVG({ fill, uid = "p" }: { fill: string; uid?: string }) {
+function PoloSVG({ fill, uid = "p", side = "front" }: { fill: string; uid?: string; side?: "front" | "back" }) {
   const light = isLight(fill);
-  const borderColor = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
-  const collarFill  = light ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.22)";
+  const b = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
+  const collarFill = light ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.22)";
   const collarStroke = light ? "rgba(0,0,0,0.2)" : "rgba(0,0,0,0.4)";
+  const hi = light ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)";
+
+  const body = "M96,65 C76,58 48,62 32,80 L8,102 L38,122 C48,110 62,108 64,107 C64,107 62,175 61,258 Q130,272 199,258 C198,175 196,107 196,107 C198,108 212,110 222,122 L252,102 L228,80 C212,62 184,58 164,65 L152,80 L130,88 L108,80 Z";
+
   return (
     <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <linearGradient id={`${uid}sg`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%"   stopColor="rgba(0,0,0,0.18)" />
-          <stop offset="22%"  stopColor="rgba(0,0,0,0.03)" />
-          <stop offset="78%"  stopColor="rgba(0,0,0,0.03)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
-        </linearGradient>
-        <linearGradient id={`${uid}hg`} x1="0.3" y1="0" x2="0.7" y2="0.4">
-          <stop offset="0%"  stopColor={light ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.06)"} />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
-        <filter id={`${uid}sh`} x="-15%" y="-8%" width="130%" height="130%">
-          <feDropShadow dx="0" dy="5" stdDeviation="9" floodColor="rgba(0,0,0,0.22)" />
-        </filter>
-      </defs>
+      <GarmentDefs uid={uid} light={light} />
       <ellipse cx="130" cy="290" rx="62" ry="5" fill="rgba(0,0,0,0.07)" />
-      {/* Body */}
-      <path filter={`url(#${uid}sh)`}
-        d="M96,65 C76,58 48,62 32,80 L8,102 L38,122 C48,110 62,108 64,107
-           C64,107 62,175 61,258 Q130,272 199,258 C198,175 196,107 196,107
-           C198,108 212,110 222,122 L252,102 L228,80
-           C212,62 184,58 164,65 L152,80 L130,88 L108,80 Z"
-        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
-      <path d="M96,65 C76,58 48,62 32,80 L8,102 L38,122 C48,110 62,108 64,107
-               C64,107 62,175 61,258 Q130,272 199,258 C198,175 196,107 196,107
-               C198,108 212,110 222,122 L252,102 L228,80
-               C212,62 184,58 164,65 L152,80 L130,88 L108,80 Z"
-        fill={`url(#${uid}sg)`} />
-      <path d="M96,65 C76,58 48,62 32,80 L8,102 L38,122 C48,110 62,108 64,107
-               C64,107 62,175 61,258 Q130,272 199,258 C198,175 196,107 196,107
-               C198,108 212,110 222,122 L252,102 L228,80
-               C212,62 184,58 164,65 L152,80 L130,88 L108,80 Z"
-        fill={`url(#${uid}hg)`} />
-      {/* Left collar panel */}
-      <path d="M96,65 L108,80 L130,88 L120,115 L98,108 L96,65 Z"
-        fill={collarFill} stroke={collarStroke} strokeWidth="1" strokeLinejoin="round" />
-      {/* Right collar panel */}
-      <path d="M164,65 L152,80 L130,88 L140,115 L162,108 L164,65 Z"
-        fill={collarFill} stroke={collarStroke} strokeWidth="1" strokeLinejoin="round" />
-      {/* Collar fold highlight */}
-      <path d="M108,80 C116,76 122,74 130,72" fill="none" stroke={light ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)"} strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M152,80 C144,76 138,74 130,72" fill="none" stroke={light ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.15)"} strokeWidth="1.5" strokeLinecap="round" />
-      {/* Placket + buttons */}
-      <line x1="130" y1="88" x2="130" y2="138" stroke={borderColor} strokeWidth="1.2" />
-      {[98, 110, 122].map(y => (
-        <circle key={y} cx="130" cy={y} r="2.8" fill={light ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)"} />
-      ))}
-      {/* Hem */}
-      <path d="M70,257 Q130,270 190,257" fill="none" stroke={borderColor} strokeWidth="0.8" strokeDasharray="4,3" />
+      <path filter={`url(#${uid}sh)`} d={body} fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
+      <path d={body} fill={`url(#${uid}sg)`} />
+      <path d={body} fill={`url(#${uid}hg)`} />
+
+      {side === "front" ? (
+        <>
+          <path d="M96,65 L108,80 L130,88 L120,115 L98,108 L96,65 Z" fill={collarFill} stroke={collarStroke} strokeWidth="1" strokeLinejoin="round" />
+          <path d="M164,65 L152,80 L130,88 L140,115 L162,108 L164,65 Z" fill={collarFill} stroke={collarStroke} strokeWidth="1" strokeLinejoin="round" />
+          <path d="M108,80 C116,76 122,74 130,72" fill="none" stroke={hi} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M152,80 C144,76 138,74 130,72" fill="none" stroke={hi} strokeWidth="1.5" strokeLinecap="round" />
+          <line x1="130" y1="88" x2="130" y2="138" stroke={b} strokeWidth="1.2" />
+          {[98, 110, 122].map(y => (
+            <circle key={y} cx="130" cy={y} r="2.8" fill={light ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.3)"} />
+          ))}
+        </>
+      ) : (
+        <>
+          {/* Back collar — standing band */}
+          <path d="M102,62 C110,50 120,44 130,43 C140,44 150,50 158,62 C150,68 140,72 130,72 C120,72 110,68 102,62 Z"
+            fill={collarFill} stroke={collarStroke} strokeWidth="1.2" strokeLinejoin="round" />
+          {/* Collar band rib lines */}
+          <path d="M106,60 C114,50 122,45 130,44" fill="none" stroke={collarStroke} strokeWidth="0.7" strokeDasharray="2,2" />
+          <path d="M154,60 C146,50 138,45 130,44" fill="none" stroke={collarStroke} strokeWidth="0.7" strokeDasharray="2,2" />
+          {/* Center back seam */}
+          <line x1="130" y1="72" x2="130" y2="258" stroke={b} strokeWidth="0.9" strokeDasharray="5,4" opacity="0.5" />
+        </>
+      )}
+      <path d="M70,257 Q130,270 190,257" fill="none" stroke={b} strokeWidth="0.8" strokeDasharray="4,3" />
     </svg>
   );
 }
 
-function HoodieSVG({ fill, uid = "h" }: { fill: string; uid?: string }) {
+function HoodieSVG({ fill, uid = "h", side = "front" }: { fill: string; uid?: string; side?: "front" | "back" }) {
   const light = isLight(fill);
-  const borderColor = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
-  const pocketFill  = light ? "rgba(0,0,0,0.07)" : "rgba(0,0,0,0.25)";
+  const b = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
+  const pocketFill = light ? "rgba(0,0,0,0.07)" : "rgba(0,0,0,0.25)";
   const stringColor = light ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)";
+  const hoodShade = light ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.22)";
+
+  const bodyPath = "M102,62 C82,64 46,76 28,88 L8,116 L40,134 C50,120 62,112 64,111 C64,111 62,180 61,263 Q130,276 199,263 C198,180 196,111 196,111 C198,112 210,120 220,134 L252,116 L232,88 C214,76 178,64 158,62 L130,68 Z";
+
   return (
     <svg viewBox="0 0 260 300" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <linearGradient id={`${uid}sg`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%"   stopColor="rgba(0,0,0,0.18)" />
-          <stop offset="25%"  stopColor="rgba(0,0,0,0.02)" />
-          <stop offset="75%"  stopColor="rgba(0,0,0,0.02)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0.18)" />
-        </linearGradient>
-        <linearGradient id={`${uid}hg`} x1="0.3" y1="0" x2="0.7" y2="0.4">
-          <stop offset="0%"  stopColor={light ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.06)"} />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
-        <filter id={`${uid}sh`} x="-15%" y="-8%" width="130%" height="130%">
-          <feDropShadow dx="0" dy="5" stdDeviation="9" floodColor="rgba(0,0,0,0.22)" />
-        </filter>
-      </defs>
+      <GarmentDefs uid={uid} light={light} />
       <ellipse cx="130" cy="295" rx="62" ry="5" fill="rgba(0,0,0,0.07)" />
-      {/* Hood */}
-      <path filter={`url(#${uid}sh)`}
-        d="M92,54 C76,36 42,38 26,68 L26,86 L50,94
-           C58,66 78,56 102,62 L130,68 L158,62
-           C182,56 202,66 210,94 L234,86 L234,68
-           C218,38 184,36 168,54
-           C158,40 146,30 130,28 C114,30 102,40 92,54 Z"
-        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
-      {/* Body */}
-      <path
-        d="M102,62 C82,64 46,76 28,88 L8,116 L40,134
-           C50,120 62,112 64,111 C64,111 62,180 61,263
-           Q130,276 199,263 C198,180 196,111 196,111
-           C198,112 210,120 220,134 L252,116 L232,88
-           C214,76 178,64 158,62 L130,68 Z"
-        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
-      {/* Shading */}
-      <path d="M92,54 C76,36 42,38 26,68 L26,86 L50,94
-               C58,66 78,56 102,62 L130,68 L158,62
-               C182,56 202,66 210,94 L234,86 L234,68
-               C218,38 184,36 168,54
-               C158,40 146,30 130,28 C114,30 102,40 92,54 Z"
-        fill={`url(#${uid}sg)`} />
-      <path d="M102,62 C82,64 46,76 28,88 L8,116 L40,134
-               C50,120 62,112 64,111 C64,111 62,180 61,263
-               Q130,276 199,263 C198,180 196,111 196,111
-               C198,112 210,120 220,134 L252,116 L232,88
-               C214,76 178,64 158,62 L130,68 Z"
-        fill={`url(#${uid}sg)`} />
-      <path d="M102,62 C82,64 46,76 28,88 L8,116 L40,134
-               C50,120 62,112 64,111 C64,111 62,180 61,263
-               Q130,276 199,263 C198,180 196,111 196,111
-               C198,112 210,120 220,134 L252,116 L232,88
-               C214,76 178,64 158,62 L130,68 Z"
-        fill={`url(#${uid}hg)`} />
-      {/* Hood-body seam line */}
-      <path d="M102,62 C112,64 120,66 130,68 C140,66 148,64 158,62"
-        fill="none" stroke={borderColor} strokeWidth="1.5" strokeLinecap="round" />
-      {/* Hood inner curve */}
-      <path d="M50,94 C68,70 94,62 130,68 C166,62 192,70 210,94"
-        fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="3" strokeLinecap="round" />
-      {/* Drawstrings */}
-      <path d="M118,68 C116,80 113,90 110,104" stroke={stringColor} strokeWidth="1.8" fill="none" strokeLinecap="round" />
-      <path d="M142,68 C144,80 147,90 150,104" stroke={stringColor} strokeWidth="1.8" fill="none" strokeLinecap="round" />
-      <circle cx="110" cy="104" r="3.5" fill={stringColor} />
-      <circle cx="150" cy="104" r="3.5" fill={stringColor} />
-      {/* Kangaroo pocket */}
-      <path d="M84,198 C84,192 88,188 94,188 L166,188 C172,188 176,192 176,198 L176,244 C176,250 172,254 166,254 L94,254 C88,254 84,250 84,244 Z"
-        fill={pocketFill} stroke={borderColor} strokeWidth="1" />
-      <line x1="130" y1="188" x2="130" y2="254" stroke={borderColor} strokeWidth="0.8" />
-      {/* Hem */}
-      <path d="M70,262 Q130,275 190,262" fill="none" stroke={borderColor} strokeWidth="0.8" strokeDasharray="4,3" />
+
+      {side === "front" ? (
+        <>
+          {/* Front hood */}
+          <path filter={`url(#${uid}sh)`}
+            d="M92,54 C76,36 42,38 26,68 L26,86 L50,94 C58,66 78,56 102,62 L130,68 L158,62 C182,56 202,66 210,94 L234,86 L234,68 C218,38 184,36 168,54 C158,40 146,30 130,28 C114,30 102,40 92,54 Z"
+            fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M92,54 C76,36 42,38 26,68 L26,86 L50,94 C58,66 78,56 102,62 L130,68 L158,62 C182,56 202,66 210,94 L234,86 L234,68 C218,38 184,36 168,54 C158,40 146,30 130,28 C114,30 102,40 92,54 Z"
+            fill={`url(#${uid}sg)`} />
+          {/* Body */}
+          <path d={bodyPath} fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
+          <path d={bodyPath} fill={`url(#${uid}sg)`} />
+          <path d={bodyPath} fill={`url(#${uid}hg)`} />
+          {/* Hood seam */}
+          <path d="M102,62 C112,64 120,66 130,68 C140,66 148,64 158,62" fill="none" stroke={b} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M50,94 C68,70 94,62 130,68 C166,62 192,70 210,94" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="3" strokeLinecap="round" />
+          {/* Drawstrings */}
+          <path d="M118,68 C116,80 113,90 110,104" stroke={stringColor} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+          <path d="M142,68 C144,80 147,90 150,104" stroke={stringColor} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+          <circle cx="110" cy="104" r="3.5" fill={stringColor} />
+          <circle cx="150" cy="104" r="3.5" fill={stringColor} />
+          {/* Kangaroo pocket */}
+          <path d="M84,198 C84,192 88,188 94,188 L166,188 C172,188 176,192 176,198 L176,244 C176,250 172,254 166,254 L94,254 C88,254 84,250 84,244 Z" fill={pocketFill} stroke={b} strokeWidth="1" />
+          <line x1="130" y1="188" x2="130" y2="254" stroke={b} strokeWidth="0.8" />
+        </>
+      ) : (
+        <>
+          {/* Back — hood visible from behind: large rounded dome */}
+          <path filter={`url(#${uid}sh)`}
+            d="M68,90 C60,70 56,48 70,32 C84,16 106,8 130,8 C154,8 176,16 190,32 C204,48 200,70 192,90 C178,82 156,76 130,76 C104,76 82,82 68,90 Z"
+            fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
+          {/* Hood shading — inner darker area */}
+          <path d="M68,90 C60,70 56,48 70,32 C84,16 106,8 130,8 C154,8 176,16 190,32 C204,48 200,70 192,90 C178,82 156,76 130,76 C104,76 82,82 68,90 Z"
+            fill={`url(#${uid}sg)`} />
+          {/* Hood highlight top */}
+          <path d="M100,18 C112,10 122,8 130,8 C138,8 148,10 160,18"
+            fill="none" stroke={light ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.12)"} strokeWidth="3" strokeLinecap="round" />
+          {/* Hood center seam */}
+          <line x1="130" y1="8" x2="130" y2="90" stroke={b} strokeWidth="1" strokeDasharray="4,3" opacity="0.6" />
+          {/* Body */}
+          <path d={bodyPath} fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
+          <path d={bodyPath} fill={`url(#${uid}sg)`} />
+          <path d={bodyPath} fill={`url(#${uid}hg)`} />
+          {/* Hood-body seam (back) */}
+          <path d="M68,90 C86,82 108,78 130,78 C152,78 174,82 192,90"
+            fill="none" stroke={b} strokeWidth="1.5" strokeLinecap="round" />
+          {/* Center back seam */}
+          <line x1="130" y1="90" x2="130" y2="263" stroke={b} strokeWidth="0.9" strokeDasharray="5,4" opacity="0.5" />
+          {/* Back shoulder yoke */}
+          <path d="M64,111 C90,118 110,122 130,122 C150,122 170,118 196,111"
+            fill="none" stroke={b} strokeWidth="0.8" strokeDasharray="3,3" opacity="0.5" />
+          {/* Hood shadow on body */}
+          <path d="M75,90 C90,96 110,100 130,100 C150,100 170,96 185,90"
+            fill="none" stroke={hoodShade} strokeWidth="6" strokeLinecap="round" opacity="0.5" />
+        </>
+      )}
+      <path d="M70,262 Q130,275 190,262" fill="none" stroke={b} strokeWidth="0.8" strokeDasharray="4,3" />
     </svg>
   );
 }
 
-function JaketSVG({ fill, uid = "j" }: { fill: string; uid?: string }) {
+function JaketSVG({ fill, uid = "j", side = "front" }: { fill: string; uid?: string; side?: "front" | "back" }) {
   const light = isLight(fill);
-  const borderColor = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
-  const lapelFill   = light ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.28)";
-  const pocketFill  = light ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.22)";
-  const zipperColor = light ? "rgba(0,0,0,0.2)"  : "rgba(255,255,255,0.2)";
+  const b = light ? "rgba(0,0,0,0.15)" : "rgba(0,0,0,0.35)";
+  const lapelFill  = light ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.28)";
+  const pocketFill = light ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.22)";
+  const zipperColor = light ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.2)";
+
+  const bodyFront = "M90,50 C70,52 44,62 28,82 L6,112 L40,132 C50,118 62,110 64,109 C64,109 62,178 61,258 Q130,270 199,258 C198,178 196,109 196,109 C198,110 210,118 220,132 L254,112 L232,82 C216,62 190,52 170,50 L158,72 L130,82 L102,72 Z";
+  const bodyBack  = "M90,50 C70,52 44,62 28,82 L6,112 L40,132 C50,118 62,110 64,109 C64,109 62,178 61,258 Q130,270 199,258 C198,178 196,109 196,109 C198,110 210,118 220,132 L254,112 L232,82 C216,62 190,52 170,50 C162,42 148,36 130,36 C112,36 98,42 90,50 Z";
+
   return (
     <svg viewBox="0 0 260 295" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-      <defs>
-        <linearGradient id={`${uid}sg`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%"   stopColor="rgba(0,0,0,0.20)" />
-          <stop offset="25%"  stopColor="rgba(0,0,0,0.03)" />
-          <stop offset="75%"  stopColor="rgba(0,0,0,0.03)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0.20)" />
-        </linearGradient>
-        <linearGradient id={`${uid}hg`} x1="0.3" y1="0" x2="0.7" y2="0.4">
-          <stop offset="0%"  stopColor={light ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.06)"} />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
-        <filter id={`${uid}sh`} x="-15%" y="-8%" width="130%" height="130%">
-          <feDropShadow dx="0" dy="5" stdDeviation="9" floodColor="rgba(0,0,0,0.22)" />
-        </filter>
-      </defs>
+      <GarmentDefs uid={uid} light={light} />
       <ellipse cx="130" cy="290" rx="62" ry="5" fill="rgba(0,0,0,0.07)" />
-      {/* Body */}
-      <path filter={`url(#${uid}sh)`}
-        d="M90,50 C70,52 44,62 28,82 L6,112 L40,132
-           C50,118 62,110 64,109 C64,109 62,178 61,258
-           Q130,270 199,258 C198,178 196,109 196,109
-           C198,110 210,118 220,132 L254,112 L232,82
-           C216,62 190,52 170,50 L158,72 L130,82 L102,72 Z"
-        fill={fill} stroke={borderColor} strokeWidth="1.2" strokeLinejoin="round" />
-      {/* Shading */}
-      <path d="M90,50 C70,52 44,62 28,82 L6,112 L40,132
-               C50,118 62,110 64,109 C64,109 62,178 61,258
-               Q130,270 199,258 C198,178 196,109 196,109
-               C198,110 210,118 220,132 L254,112 L232,82
-               C216,62 190,52 170,50 L158,72 L130,82 L102,72 Z"
-        fill={`url(#${uid}sg)`} />
-      <path d="M90,50 C70,52 44,62 28,82 L6,112 L40,132
-               C50,118 62,110 64,109 C64,109 62,178 61,258
-               Q130,270 199,258 C198,178 196,109 196,109
-               C198,110 210,118 220,132 L254,112 L232,82
-               C216,62 190,52 170,50 L158,72 L130,82 L102,72 Z"
-        fill={`url(#${uid}hg)`} />
-      {/* Left lapel */}
-      <path d="M90,50 L102,72 L130,82 L116,114 L96,106 C92,90 86,68 90,50 Z"
-        fill={lapelFill} stroke={borderColor} strokeWidth="1" strokeLinejoin="round" />
-      {/* Right lapel */}
-      <path d="M170,50 L158,72 L130,82 L144,114 L164,106 C168,90 174,68 170,50 Z"
-        fill={lapelFill} stroke={borderColor} strokeWidth="1" strokeLinejoin="round" />
-      {/* Lapel fold highlight */}
-      <path d="M102,72 C112,70 120,74 130,78" fill="none" stroke={light ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.1)"} strokeWidth="1.2" strokeLinecap="round" />
-      <path d="M158,72 C148,70 140,74 130,78" fill="none" stroke={light ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.1)"} strokeWidth="1.2" strokeLinecap="round" />
-      {/* Center zipper */}
-      <line x1="130" y1="82" x2="130" y2="258" stroke={zipperColor} strokeWidth="1.5" />
-      {[96,110,124,138,152,166,180,194,208,222,236,250].map(y => (
-        <line key={y} x1="127" y1={y} x2="133" y2={y} stroke={zipperColor} strokeWidth="1.2" />
-      ))}
-      {/* Chest pockets */}
-      <rect x="72" y="126" width="42" height="26" rx="4" fill={pocketFill} stroke={borderColor} strokeWidth="0.9" />
-      <rect x="146" y="126" width="42" height="26" rx="4" fill={pocketFill} stroke={borderColor} strokeWidth="0.9" />
-      <line x1="72" y1="134" x2="114" y2="134" stroke={borderColor} strokeWidth="0.7" />
-      <line x1="146" y1="134" x2="188" y2="134" stroke={borderColor} strokeWidth="0.7" />
-      {/* Hip pockets */}
-      <path d="M66,196 C66,190 70,186 76,186 L120,186 C126,186 130,190 130,196 L130,225 C130,231 126,235 120,235 L72,235 C68,235 66,233 66,229 Z"
-        fill={pocketFill} stroke={borderColor} strokeWidth="0.9" />
-      <path d="M130,196 C130,190 134,186 140,186 L184,186 C190,186 194,190 194,196 L194,225 C194,231 190,235 184,235 L136,235 C132,235 130,233 130,229 Z"
-        fill={pocketFill} stroke={borderColor} strokeWidth="0.9" />
-      {/* Hem */}
-      <path d="M70,257 Q130,268 190,257" fill="none" stroke={borderColor} strokeWidth="0.8" strokeDasharray="4,3" />
+
+      {side === "front" ? (
+        <>
+          <path filter={`url(#${uid}sh)`} d={bodyFront} fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
+          <path d={bodyFront} fill={`url(#${uid}sg)`} />
+          <path d={bodyFront} fill={`url(#${uid}hg)`} />
+          {/* Lapels */}
+          <path d="M90,50 L102,72 L130,82 L116,114 L96,106 C92,90 86,68 90,50 Z" fill={lapelFill} stroke={b} strokeWidth="1" strokeLinejoin="round" />
+          <path d="M170,50 L158,72 L130,82 L144,114 L164,106 C168,90 174,68 170,50 Z" fill={lapelFill} stroke={b} strokeWidth="1" strokeLinejoin="round" />
+          <path d="M102,72 C112,70 120,74 130,78" fill="none" stroke={light ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.1)"} strokeWidth="1.2" strokeLinecap="round" />
+          <path d="M158,72 C148,70 140,74 130,78" fill="none" stroke={light ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.1)"} strokeWidth="1.2" strokeLinecap="round" />
+          {/* Zipper */}
+          <line x1="130" y1="82" x2="130" y2="258" stroke={zipperColor} strokeWidth="1.5" />
+          {[96,110,124,138,152,166,180,194,208,222,236,250].map(y => (
+            <line key={y} x1="127" y1={y} x2="133" y2={y} stroke={zipperColor} strokeWidth="1.2" />
+          ))}
+          {/* Chest pockets */}
+          <rect x="72" y="126" width="42" height="26" rx="4" fill={pocketFill} stroke={b} strokeWidth="0.9" />
+          <rect x="146" y="126" width="42" height="26" rx="4" fill={pocketFill} stroke={b} strokeWidth="0.9" />
+          <line x1="72" y1="134" x2="114" y2="134" stroke={b} strokeWidth="0.7" />
+          <line x1="146" y1="134" x2="188" y2="134" stroke={b} strokeWidth="0.7" />
+          {/* Hip pockets */}
+          <path d="M66,196 C66,190 70,186 76,186 L120,186 C126,186 130,190 130,196 L130,225 C130,231 126,235 120,235 L72,235 C68,235 66,233 66,229 Z" fill={pocketFill} stroke={b} strokeWidth="0.9" />
+          <path d="M130,196 C130,190 134,186 140,186 L184,186 C190,186 194,190 194,196 L194,225 C194,231 190,235 184,235 L136,235 C132,235 130,233 130,229 Z" fill={pocketFill} stroke={b} strokeWidth="0.9" />
+        </>
+      ) : (
+        <>
+          <path filter={`url(#${uid}sh)`} d={bodyBack} fill={fill} stroke={b} strokeWidth="1.2" strokeLinejoin="round" />
+          <path d={bodyBack} fill={`url(#${uid}sg)`} />
+          <path d={bodyBack} fill={`url(#${uid}hg)`} />
+          {/* Back neckline — collar band */}
+          <path d="M100,46 C110,36 120,32 130,32 C140,32 150,36 160,46 C150,54 140,58 130,58 C120,58 110,54 100,46 Z"
+            fill={pocketFill} stroke={b} strokeWidth="1.1" />
+          {/* Back collar highlight */}
+          <path d="M106,44 C114,36 122,33 130,32" fill="none" stroke={light ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.12)"} strokeWidth="1.2" strokeLinecap="round" />
+          {/* Back yoke seam (horizontal shoulder panel) */}
+          <path d="M64,109 C90,120 110,126 130,126 C150,126 170,120 196,109"
+            fill="none" stroke={b} strokeWidth="1.2" strokeLinecap="round" />
+          {/* Center back seam */}
+          <line x1="130" y1="58" x2="130" y2="258" stroke={b} strokeWidth="1" strokeDasharray="5,4" opacity="0.55" />
+          {/* Back hip slash pockets */}
+          <path d="M74,196 C80,190 102,188 112,190" fill="none" stroke={b} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M148,196 C158,190 178,188 186,190" fill="none" stroke={b} strokeWidth="1.5" strokeLinecap="round" />
+        </>
+      )}
+      <path d="M70,257 Q130,268 190,257" fill="none" stroke={b} strokeWidth="0.8" strokeDasharray="4,3" />
     </svg>
   );
 }
 
-const GARMENT_SVG: Record<GarmentId, React.FC<{ fill: string; uid?: string }>> = {
+const GARMENT_SVG: Record<GarmentId, React.FC<{ fill: string; uid?: string; side?: "front" | "back" }>> = {
   kaos: KaosSVG, polo: PoloSVG, hoodie: HoodieSVG, jaket: JaketSVG,
 };
 
@@ -420,7 +401,7 @@ function ShirtPreview({
             onMouseUp={stopDrag}
             onMouseLeave={stopDrag}
           >
-            <GarmentComp fill={state.color} uid={`prev-${state.garment}`} />
+            <GarmentComp fill={state.color} uid={`prev-${state.garment}-${side}`} side={side} />
 
             {/* Text overlays — draggable */}
             {visibleTexts.map(t => (
@@ -515,7 +496,7 @@ function Step1({ state, set }: { state: BuilderState; set: (s: Partial<BuilderSt
                   </div>
                 )}
                 <div className="w-full h-24 mb-2">
-                  <GComp fill={active ? "#0d9488" : "#9ca3af"} />
+                  <GComp fill={active ? "#0d9488" : "#9ca3af"} side="front" />
                 </div>
                 <p className={`text-sm font-bold ${active ? "text-teal-700" : "text-gray-700"}`}>{g.label}</p>
                 <p className="text-[10px] text-gray-400 mt-0.5">{g.desc}</p>

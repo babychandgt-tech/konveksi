@@ -10,6 +10,22 @@ type GeneralRow = { min_order: number; sizes: string[] };
 
 const ALL_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 
+const DEFAULT_GARMENTS: GarmentRow[] = [
+  { id: "kaos",   label: "Kaos",   basePrice: 75000,  desc: "Katun 30s / 24s combed" },
+  { id: "polo",   label: "Polo",   basePrice: 95000,  desc: "Lacoste / pique cotton" },
+  { id: "hoodie", label: "Hoodie", basePrice: 155000, desc: "Fleece / terry cotton" },
+  { id: "jaket",  label: "Jaket",  basePrice: 185000, desc: "Parasut / drill / taslan" },
+];
+
+const DEFAULT_PRINT_METHODS: PrintRow[] = [
+  { id: "tanpa",  label: "Tanpa Cetak", desc: "Baju polos tanpa tambahan",     surcharge: 0 },
+  { id: "sablon", label: "Sablon",      desc: "Tinta rubber / plastisol",      surcharge: 15000 },
+  { id: "dtf",    label: "DTF",         desc: "Direct to Film, warna tajam",   surcharge: 20000 },
+  { id: "bordir", label: "Bordir",      desc: "Jahitan benang, kesan premium", surcharge: 30000 },
+];
+
+const DEFAULT_GENERAL: GeneralRow = { min_order: 1, sizes: ["S", "M", "L", "XL", "XXL"] };
+
 function SectionHeader({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-100">
@@ -41,20 +57,44 @@ function SaveBtn({ id, saving, saved, onClick }: {
 }
 
 export default function PengaturanBuilder() {
-  const [garments,     setGarments]     = useState<GarmentRow[]>([]);
-  const [printMethods, setPrintMethods] = useState<PrintRow[]>([]);
-  const [general,      setGeneral]      = useState<GeneralRow>({ min_order: 1, sizes: ALL_SIZES });
+  const [garments,     setGarments]     = useState<GarmentRow[]>(DEFAULT_GARMENTS);
+  const [printMethods, setPrintMethods] = useState<PrintRow[]>(DEFAULT_PRINT_METHODS);
+  const [general,      setGeneral]      = useState<GeneralRow>(DEFAULT_GENERAL);
   const [saving,       setSaving]       = useState<string | null>(null);
   const [saved,        setSaved]        = useState<string | null>(null);
+  const [loading,      setLoading]      = useState(true);
 
   useEffect(() => {
-    supabase.from("builder_settings").select("id, data").then(({ data }) => {
-      if (!data) return;
-      for (const row of data) {
-        if (row.id === "garments")      setGarments(row.data as unknown as GarmentRow[]);
-        if (row.id === "print_methods") setPrintMethods(row.data as unknown as PrintRow[]);
-        if (row.id === "general")       setGeneral(row.data as unknown as GeneralRow);
+    supabase.from("builder_settings").select("id, data").then(async ({ data }) => {
+      const rows = data ?? [];
+      const ids  = rows.map(r => r.id);
+
+      const toSeed: { id: string; data: unknown; updated_at: string }[] = [];
+      const now = new Date().toISOString();
+
+      if (ids.includes("garments")) {
+        setGarments(rows.find(r => r.id === "garments")!.data as unknown as GarmentRow[]);
+      } else {
+        toSeed.push({ id: "garments", data: DEFAULT_GARMENTS, updated_at: now });
       }
+
+      if (ids.includes("print_methods")) {
+        setPrintMethods(rows.find(r => r.id === "print_methods")!.data as unknown as PrintRow[]);
+      } else {
+        toSeed.push({ id: "print_methods", data: DEFAULT_PRINT_METHODS, updated_at: now });
+      }
+
+      if (ids.includes("general")) {
+        setGeneral(rows.find(r => r.id === "general")!.data as unknown as GeneralRow);
+      } else {
+        toSeed.push({ id: "general", data: DEFAULT_GENERAL, updated_at: now });
+      }
+
+      if (toSeed.length > 0) {
+        await supabase.from("builder_settings").upsert(toSeed);
+      }
+
+      setLoading(false);
     });
   }, []);
 
@@ -72,6 +112,15 @@ export default function PengaturanBuilder() {
 
   const updPrint = (i: number, field: keyof PrintRow, val: string | number) =>
     setPrintMethods(g => g.map((r, j) => j === i ? { ...r, [field]: val } : r));
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-6 h-6 animate-spin text-teal-600" />
+        <span className="ml-2 text-sm text-gray-500">Memuat pengaturan…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

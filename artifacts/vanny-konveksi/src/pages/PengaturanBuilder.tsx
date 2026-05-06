@@ -2,10 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Save, Loader2, Check, Scissors, Printer, Palette, Settings2 } from "lucide-react";
+import { Save, Loader2, Check, Scissors, Printer, Settings2 } from "lucide-react";
 
 type GarmentRow = { id: string; label: string; basePrice: number; desc: string };
-type ColorRow   = { name: string; hex: string };
 type PrintRow   = { id: string; label: string; desc: string; surcharge: number };
 type GeneralRow = { min_order: number; sizes: string[] };
 
@@ -43,7 +42,6 @@ function SaveBtn({ id, saving, saved, onClick }: {
 
 export default function PengaturanBuilder() {
   const [garments,     setGarments]     = useState<GarmentRow[]>([]);
-  const [colors,       setColors]       = useState<ColorRow[]>([]);
   const [printMethods, setPrintMethods] = useState<PrintRow[]>([]);
   const [general,      setGeneral]      = useState<GeneralRow>({ min_order: 1, sizes: ALL_SIZES });
   const [saving,       setSaving]       = useState<string | null>(null);
@@ -54,7 +52,6 @@ export default function PengaturanBuilder() {
       if (!data) return;
       for (const row of data) {
         if (row.id === "garments")      setGarments(row.data as unknown as GarmentRow[]);
-        if (row.id === "colors")        setColors(row.data as unknown as ColorRow[]);
         if (row.id === "print_methods") setPrintMethods(row.data as unknown as PrintRow[]);
         if (row.id === "general")       setGeneral(row.data as unknown as GeneralRow);
       }
@@ -114,43 +111,6 @@ export default function PengaturanBuilder() {
         <div className="mt-5 pt-4 border-t border-gray-100 flex justify-end">
           <SaveBtn id="garments" saving={saving} saved={saved}
             onClick={() => saveSection("garments", garments)} />
-        </div>
-      </div>
-
-      {/* ── Warna Kain ── */}
-      <div className="bg-white p-6 rounded-xl border border-black/[0.07] shadow-sm">
-        <SectionHeader
-          icon={<Palette className="h-5 w-5 text-teal-600" />}
-          title="Warna Kain"
-          desc="Kelola pilihan warna yang tampil di Custom Builder untuk pelanggan." />
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">
-          {colors.map((c, i) => (
-            <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-gray-100 bg-gray-50">
-              <input type="color" value={c.hex}
-                onChange={e => setColors(arr => arr.map((r, j) => j === i ? { ...r, hex: e.target.value } : r))}
-                className="w-8 h-8 rounded-md border border-gray-200 cursor-pointer p-0.5 flex-shrink-0"
-                title="Pilih warna" />
-              <Input value={c.name}
-                onChange={e => setColors(arr => arr.map((r, j) => j === i ? { ...r, name: e.target.value } : r))}
-                className="h-7 text-xs border-gray-200 focus-visible:ring-teal-500 flex-1"
-                placeholder="Nama warna" />
-              <button type="button"
-                onClick={() => setColors(arr => arr.filter((_, j) => j !== i))}
-                className="text-red-300 hover:text-red-500 transition-colors flex-shrink-0"
-                title="Hapus">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-        <button type="button"
-          onClick={() => setColors(arr => [...arr, { name: "Warna Baru", hex: "#888888" }])}
-          className="flex items-center gap-1.5 text-xs text-teal-700 font-semibold border border-teal-200 rounded-lg px-3 py-1.5 hover:bg-teal-50 transition-colors">
-          <Plus className="w-3.5 h-3.5" /> Tambah Warna
-        </button>
-        <div className="mt-5 pt-4 border-t border-gray-100 flex justify-end">
-          <SaveBtn id="colors" saving={saving} saved={saved}
-            onClick={() => saveSection("colors", colors)} />
         </div>
       </div>
 

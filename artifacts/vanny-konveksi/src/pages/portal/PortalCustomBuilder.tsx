@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { CartItem, Product, formatRupiah } from "./types";
 
 /* ─── Types ──────────────────────────────────────────────── */
-type GarmentId   = "kaos" | "polo" | "hoodie" | "jaket";
-type PrintMethod = "tanpa" | "sablon" | "dtf" | "bordir";
+type GarmentId   = string;
+type PrintMethod = string;
 type PreviewSide = "front" | "back";
 type ViewSide    = "front" | "sleeve-l" | "sleeve-r" | "back";
 type TextShape   = "normal" | "arc-up" | "arc-down" | "circle";
@@ -503,9 +503,13 @@ function JaketSVG({ fill, uid = "j", side = "front" }: { fill: string; uid?: str
   );
 }
 
-const GARMENT_SVG: Record<GarmentId, React.FC<{ fill: string; uid?: string; side?: "front" | "back" }>> = {
+const GARMENT_SVG_MAP: Record<string, React.FC<{ fill: string; uid?: string; side?: "front" | "back" }>> = {
   kaos: KaosSVG, polo: PoloSVG, hoodie: HoodieSVG, jaket: JaketSVG,
 };
+
+function getGarmentSVG(id: string): React.FC<{ fill: string; uid?: string; side?: "front" | "back" }> {
+  return GARMENT_SVG_MAP[id] ?? KaosSVG;
+}
 
 /* ─── Shaped Text Renderer ───────────────────────────────── */
 function ShapedText({ t, light }: { t: TextEl; light: boolean }) {
@@ -552,7 +556,7 @@ function ShapedText({ t, light }: { t: TextEl; light: boolean }) {
 function GarmentCanvas({ state, side }: { state: BuilderState; side: ViewSide }) {
   const isSleeve    = side === "sleeve-l" || side === "sleeve-r";
   const garmentSide: PreviewSide = isSleeve ? "front" : side as PreviewSide;
-  const GarmentComp = GARMENT_SVG[state.garment];
+  const GarmentComp = getGarmentSVG(state.garment);
   const visibleTexts = state.texts.filter(t => {
     if (!isSleeve) return t.side === garmentSide;
     return t.side === "front" && (side === "sleeve-l" ? t.x <= 40 : t.x >= 60);
@@ -596,6 +600,12 @@ function GarmentCanvas({ state, side }: { state: BuilderState; side: ViewSide })
       </div>
     </div>
   );
+}
+
+/* ─── Garment Label Helper ───────────────────────────────── */
+function GarmentLabelFromCtx({ garmentId }: { garmentId: string }) {
+  const { garments } = useContext(BuilderSettingsCtx);
+  return <>{garments.find(g => g.id === garmentId)?.label ?? garmentId}</>;
 }
 
 /* ─── Preview Modal ──────────────────────────────────────── */
@@ -647,7 +657,7 @@ function PreviewModal({ state, onClose }: { state: BuilderState; onClose: () => 
             <div>
               <p className="text-gray-400 mb-0.5">Jenis</p>
               <p className="font-semibold text-gray-700">
-                {state.garment === "kaos" ? "Kaos" : state.garment === "polo" ? "Polo" : state.garment === "hoodie" ? "Hoodie" : "Jaket"}
+                <GarmentLabelFromCtx garmentId={state.garment} />
               </p>
             </div>
             <div>
@@ -684,7 +694,7 @@ function ShirtPreview({
   const { colors } = useContext(BuilderSettingsCtx);
   const isSleeve     = side === "sleeve-l" || side === "sleeve-r";
   const garmentSide: PreviewSide = isSleeve ? "front" : side as PreviewSide;
-  const GarmentComp  = GARMENT_SVG[state.garment];
+  const GarmentComp  = getGarmentSVG(state.garment);
   const visibleTexts = state.texts.filter(t => {
     if (!isSleeve) return t.side === garmentSide;
     return t.side === "front" && (side === "sleeve-l" ? t.x <= 40 : t.x >= 60);
@@ -994,7 +1004,7 @@ function Step1({ state, set }: { state: BuilderState; set: (s: Partial<BuilderSt
         <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Pilih Jenis Baju</p>
         <div className="grid grid-cols-2 gap-3">
           {garments.map(g => {
-            const GComp = GARMENT_SVG[g.id];
+            const GComp = getGarmentSVG(g.id);
             const active = state.garment === g.id;
             return (
               <button key={g.id} type="button" onClick={() => set({ garment: g.id as GarmentId })}
@@ -1456,7 +1466,7 @@ function Step3({ state, set }: { state: BuilderState; set: (s: Partial<BuilderSt
         </div>
 
         <div className="rounded-xl border border-gray-100 overflow-hidden">
-          {SIZES.map((size, i) => (
+          {sizes.map((size, i) => (
             <div key={size}
               className={`flex items-center justify-between px-4 py-3 ${i > 0 ? "border-t border-gray-50" : ""} ${breakdown[size] > 0 ? "bg-teal-50/40" : "bg-white"}`}>
               <div className="flex items-center gap-3">
@@ -1539,6 +1549,21 @@ export default function PortalCustomBuilder({ onAddToCart, setSection }: Props) 
   const [showPreview, setShowPreview] = useState(false);
 
   const set = (partial: Partial<BuilderState>) => setState(prev => ({ ...prev, ...partial }));
+
+  // Sync garment & printMethod to first valid option when settings load from Supabase
+  useEffect(() => {
+    if (!settings.garments.length) return;
+    setState(prev => {
+      const garmentValid = settings.garments.some(g => g.id === prev.garment);
+      const methodValid  = settings.printMethods.some(m => m.id === prev.printMethod);
+      if (garmentValid && methodValid) return prev;
+      return {
+        ...prev,
+        garment:     garmentValid ? prev.garment     : settings.garments[0].id,
+        printMethod: methodValid  ? prev.printMethod : settings.printMethods[0]?.id ?? prev.printMethod,
+      };
+    });
+  }, [settings.garments, settings.printMethods]);
 
   const updateText = (id: string, patch: Partial<TextEl>) => {
     setState(prev => ({

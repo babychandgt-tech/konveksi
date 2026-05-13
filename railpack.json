@@ -1,0 +1,8 @@
+{
+  "build": {
+    "cmd": "pnpm install && BASE_PATH=/ pnpm --filter @workspace/vanny-konveksi run build && pnpm --filter @workspace/api-server run build"
+  },
+  "start": {
+    "cmd": "pnpm --filter @workspace/api-server run start"
+  }
+}

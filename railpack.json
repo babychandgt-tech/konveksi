@@ -1,8 +1,14 @@
 {
-  "build": {
-    "cmd": "pnpm install && BASE_PATH=/ pnpm --filter @workspace/vanny-konveksi run build && pnpm --filter @workspace/api-server run build"
+  "$schema": "https://schema.railpack.com",
+  "steps": {
+    "build": {
+      "commands": [
+        "...",
+        { "cmd": "pnpm run build:railway" }
+      ]
+    }
   },
-  "start": {
-    "cmd": "pnpm --filter @workspace/api-server run start"
+  "deploy": {
+    "startCommand": "pnpm run start"
   }
 }

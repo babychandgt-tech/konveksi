@@ -1,9 +1,14 @@
 {
   "$schema": "https://schema.railpack.com",
   "steps": {
-    "build": {
+    "install": {
       "commands": [
-        "...",
+        { "cmd": "pnpm install --no-frozen-lockfile" }
+      ]
+    },
+    "build": {
+      "inputs": [{ "step": "install" }],
+      "commands": [
         { "cmd": "pnpm run build:railway" }
       ]
     }

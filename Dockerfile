@@ -22,6 +22,14 @@ RUN pnpm install --frozen-lockfile
 # Copy full source after install
 COPY . .
 
+# Declare build-time args — Railway passes service variables as ARGs automatically
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+
+# Export as ENV so Vite can read them during `vite build`
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+
 RUN PORT=3000 BASE_PATH=/ pnpm --filter @workspace/vanny-konveksi run build && \
     pnpm --filter @workspace/api-server run build
 
